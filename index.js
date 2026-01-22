@@ -307,3 +307,28 @@ client.on('message', async (msg) => {
 
 client.initialize();
 
+/**
+ * ========================= MANEJO DE ERRORES CRÍTICOS =========================
+ *
+ * Puppeteer y WhatsApp Web pueden fallar internamente (contextos destruidos,
+ * promesas no manejadas, crashes silenciosos, etc.).
+ *
+ * Estos handlers evitan que el bot quede "vivo pero roto":
+ * - Si ocurre un error fatal no controlado
+ * - El proceso se cierra intencionalmente
+ * - PM2 lo reinicia automáticamente en limpio
+ *
+ * Esto mejora la estabilidad en VPS de bajos recursos (1GB RAM)
+ * y garantiza operación 24/7 sin intervención manual.
+ * ============================================================================
+ */
+
+process.on('unhandledRejection', (reason) => {
+  console.error('Unhandled Rejection:', reason);
+  process.exit(1);
+});
+
+process.on('uncaughtException', (err) => {
+  console.error('Uncaught Exception:', err);
+  process.exit(1);
+});
