@@ -19,30 +19,31 @@ module.exports = async (msg) => {
 
         // ❌ No hay media
         if (!media) {
-            await msg.reply('Debes enviar o responder a una imagen para crear un sticker.');
+            const errorMsg = await msg.reply(
+                'Debes enviar o responder a una imagen para crear un sticker.'
+            );
+            await errorMsg.react('❎');
             await msg.react('❎');
             return null;
         }
 
-        // ❌ Validar imagen
-        if (!media.mimetype.startsWith('image/')) {
-            await msg.reply('Solo imágenes son compatibles para sticker.');
-            await msg.react('❎');
-            return null;
-        }
-
-        // ✅ Enviar como sticker (FIX aplicado)
+        // ✅ ENVIAR STICKER COMO REPLY (CLAVE)
         const sent = await msg.reply(media, undefined, {
             sendMediaAsSticker: true,
             stickerAuthor: 'AkR Bot',
             stickerName: 'AkR'
         });
 
+        // 👉 DEVOLVER mensaje para que index.js reaccione 🖼️
         return sent;
 
     } catch (error) {
-        console.error('Sticker error:', error);
-        try { await msg.react('❎'); } catch {}
-        return null;
+        console.error('Error en comando sticker:', error);
+
+        try {
+            await msg.react('❎');
+        } catch {}
+
+        throw error;
     }
 };
