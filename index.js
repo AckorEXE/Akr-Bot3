@@ -193,6 +193,12 @@ client.on('ready', () => {
     console.log('🤖 AkR-Bot conectado correctamente');
 });
 
+// Muestra error de porque se desconecta
+client.on('disconnected', (reason) => {
+  console.error('WhatsApp desconectado:', reason);
+  process.exit(1);
+});
+
 /* =========================
    HANDLER PRINCIPAL
 ========================= */
