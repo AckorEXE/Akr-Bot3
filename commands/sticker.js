@@ -19,22 +19,34 @@ module.exports = async (msg) => {
 
         // ❌ No hay media
         if (!media) {
-            const errorMsg = await msg.reply(
-                'Debes enviar o responder a una imagen o video para crear un sticker.'
-            );
-            await errorMsg.react('❎');
+            await msg.reply('Debes enviar o responder a una imagen o video para crear un sticker.');
             await msg.react('❎');
             return null;
         }
 
-        // ✅ ENVIAR STICKER COMO REPLY (CLAVE)
+        // ❌ Validar tipo de archivo
+        const allowed = [
+            'image/jpeg',
+            'image/png',
+            'video/mp4'
+        ];
+
+        if (!allowed.includes(media.mimetype)) {
+            await msg.reply(
+                `Este archivo no es compatible para stickers.\n` +
+                `Tipo detectado: ${media.mimetype}`
+            );
+            await msg.react('❎');
+            return null;
+        }
+
+        // ✅ Enviar sticker
         const sent = await msg.reply(media, undefined, {
             sendMediaAsSticker: true,
             stickerAuthor: 'AkR Bot',
             stickerName: 'AkR'
         });
 
-        // 👉 DEVOLVER mensaje para que index.js reaccione 🖼️
         return sent;
 
     } catch (error) {
@@ -44,6 +56,6 @@ module.exports = async (msg) => {
             await msg.react('❎');
         } catch {}
 
-        throw error;
+        return null;
     }
 };
