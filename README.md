@@ -2,7 +2,7 @@
 Bot enfocado solamente para la administración de grupos de Whatsapp para jugadores de Tibia.
 
 ### `—◉ 🧿 COMANDOS 🧿`
-![img](https://i.imgur.com/1acZqod.png)
+![img](https://i.imgur.com/xZ6gpe6.png)
 
 ### `—◉ 👾 ACTIVAR EN UBUNTU 22.04 👾`
 ESCRIBE LOS SIGUIENTES COMANDOS UNO POR UNO:
