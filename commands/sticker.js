@@ -24,26 +24,34 @@ module.exports = async (msg) => {
         const tempDir = path.join(__dirname, '../temp');
         fs.mkdirSync(tempDir, { recursive: true });
 
-        const input = path.join(tempDir, 'input.png');
+        const raw = path.join(tempDir, 'raw.png');
+        const normalized = path.join(tempDir, 'normalized.png');
         const webp = path.join(tempDir, 'sticker.webp');
 
-        fs.writeFileSync(input, Buffer.from(media.data, 'base64'));
+        // Guardar imagen original
+        fs.writeFileSync(raw, Buffer.from(media.data, 'base64'));
 
-        // 🧼 Normalizar imagen
-        await sharp(input)
+        // 🧼 Normalizar imagen (archivo NUEVO)
+        await sharp(raw)
             .resize(512, 512, { fit: 'inside' })
             .png()
-            .toFile(input);
+            .toFile(normalized);
 
-        // 🧪 Convertir a WEBP (formato sticker real)
-        execSync(`ffmpeg -y -i ${input} -vcodec libwebp -filter:v fps=fps=15 -lossless 1 -compression_level 6 -q:v 50 -loop 0 -preset default -an -vsync 0 ${webp}`);
+        // 🎯 Convertir a WEBP (sticker real)
+        execSync(
+            `ffmpeg -y -i ${normalized} ` +
+            `-vcodec libwebp -filter:v fps=15 ` +
+            `-lossless 1 -compression_level 6 ` +
+            `-q:v 50 -loop 0 -an -vsync 0 ${webp}`
+        );
 
         const sticker = MessageMedia.fromFilePath(webp);
 
-        // ✅ Enviar como sticker REAL (sin sendMediaAsSticker)
         const sent = await msg.reply(sticker);
 
-        fs.unlinkSync(input);
+        // 🧹 Limpieza
+        fs.unlinkSync(raw);
+        fs.unlinkSync(normalized);
         fs.unlinkSync(webp);
 
         return sent;
