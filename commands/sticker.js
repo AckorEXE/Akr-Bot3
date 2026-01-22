@@ -6,21 +6,29 @@ const { execSync } = require('child_process');
 
 module.exports = async (msg) => {
     try {
-        let media;
+        let media = null;
 
+        // 📎 Media directa
         if (msg.hasMedia) {
             media = await msg.downloadMedia();
-        } else if (msg.hasQuotedMsg) {
-            const quoted = await msg.getQuotedMessage();
-            if (quoted.hasMedia) media = await quoted.downloadMedia();
         }
 
+        // 📎 Media citada
+        if (!media && msg.hasQuotedMsg) {
+            const quoted = await msg.getQuotedMessage();
+            if (quoted.hasMedia) {
+                media = await quoted.downloadMedia();
+            }
+        }
+
+        // ❌ No hay imagen
         if (!media || !media.mimetype.startsWith('image/')) {
-            await msg.reply('Solo imágenes para sticker.');
+            await msg.reply('Debes enviar o responder a una imagen para crear un sticker.');
             await msg.react('❎');
             return null;
         }
 
+        // 📁 Carpeta temporal
         const tempDir = path.join(__dirname, '../temp');
         fs.mkdirSync(tempDir, { recursive: true });
 
@@ -28,10 +36,10 @@ module.exports = async (msg) => {
         const normalized = path.join(tempDir, 'normalized.png');
         const webp = path.join(tempDir, 'sticker.webp');
 
-        // Guardar imagen original
+        // 💾 Guardar imagen original
         fs.writeFileSync(raw, Buffer.from(media.data, 'base64'));
 
-        // 🧼 Normalizar imagen (archivo NUEVO)
+        // 🧼 Normalizar imagen
         await sharp(raw)
             .resize(512, 512, { fit: 'inside' })
             .png()
@@ -39,15 +47,24 @@ module.exports = async (msg) => {
 
         // 🎯 Convertir a WEBP (sticker real)
         execSync(
-            `ffmpeg -y -i ${normalized} ` +
+            `ffmpeg -y -i "${normalized}" ` +
             `-vcodec libwebp -filter:v fps=15 ` +
             `-lossless 1 -compression_level 6 ` +
-            `-q:v 50 -loop 0 -an -vsync 0 ${webp}`
+            `-q:v 50 -loop 0 -an -vsync 0 "${webp}"`
         );
 
+        // 🧩 Crear media como STICKER
         const sticker = MessageMedia.fromFilePath(webp);
+        sticker.mimetype = 'image/webp';
+        sticker.filename = 'sticker.webp';
 
-        const sent = await msg.reply(sticker);
+        // 📤 Enviar como sticker real
+        const chat = await msg.getChat();
+        const sent = await chat.sendMessage(sticker, {
+            sendMediaAsSticker: true,
+            stickerAuthor: 'AkR Bot',
+            stickerName: 'AkR'
+        });
 
         // 🧹 Limpieza
         fs.unlinkSync(raw);
@@ -56,8 +73,8 @@ module.exports = async (msg) => {
 
         return sent;
 
-    } catch (err) {
-        console.error('Sticker error:', err);
+    } catch (error) {
+        console.error('Sticker error:', error);
         try { await msg.react('❎'); } catch {}
         return null;
     }
