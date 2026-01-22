@@ -1,61 +1,55 @@
 const { MessageMedia } = require('whatsapp-web.js');
+const sharp = require('sharp');
+const fs = require('fs');
+const path = require('path');
 
 module.exports = async (msg) => {
     try {
-        let media = null;
+        let media;
 
-        // 📎 Media directa
         if (msg.hasMedia) {
             media = await msg.downloadMedia();
-        }
-
-        // 📎 Media citada
-        if (!media && msg.hasQuotedMsg) {
+        } else if (msg.hasQuotedMsg) {
             const quoted = await msg.getQuotedMessage();
-            if (quoted.hasMedia) {
-                media = await quoted.downloadMedia();
-            }
+            if (quoted.hasMedia) media = await quoted.downloadMedia();
         }
 
-        // ❌ No hay media
-        if (!media) {
-            await msg.reply('Debes enviar o responder a una imagen o video para crear un sticker.');
+        if (!media || !media.mimetype.startsWith('image/')) {
+            await msg.reply('Solo imágenes compatibles para sticker.');
             await msg.react('❎');
             return null;
         }
 
-        // ❌ Validar tipo de archivo
-        const allowed = [
-            'image/jpeg',
-            'image/png',
-            'video/mp4'
-        ];
+        // 📁 Guardar temporal
+        const input = path.join(__dirname, '../temp/input.png');
+        const output = path.join(__dirname, '../temp/output.png');
 
-        if (!allowed.includes(media.mimetype)) {
-            await msg.reply(
-                `Este archivo no es compatible para stickers.\n` +
-                `Tipo detectado: ${media.mimetype}`
-            );
-            await msg.react('❎');
-            return null;
-        }
+        fs.mkdirSync(path.dirname(input), { recursive: true });
 
-        // ✅ Enviar sticker
-        const sent = await msg.reply(media, undefined, {
+        fs.writeFileSync(input, Buffer.from(media.data, 'base64'));
+
+        // 🧪 Normalizar imagen
+        await sharp(input)
+            .resize(512, 512, { fit: 'inside' })
+            .png()
+            .toFile(output);
+
+        const sticker = MessageMedia.fromFilePath(output);
+
+        const sent = await msg.reply(sticker, undefined, {
             sendMediaAsSticker: true,
             stickerAuthor: 'AkR Bot',
             stickerName: 'AkR'
         });
 
+        fs.unlinkSync(input);
+        fs.unlinkSync(output);
+
         return sent;
 
-    } catch (error) {
-        console.error('Error en comando sticker:', error);
-
-        try {
-            await msg.react('❎');
-        } catch {}
-
+    } catch (err) {
+        console.error('Sticker error:', err);
+        try { await msg.react('❎'); } catch {}
         return null;
     }
 };
