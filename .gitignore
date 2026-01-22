@@ -1,0 +1,7 @@
+node_modules/
+.webjs_auth/
+.cache/
+.chrome-profile/
+.env
+npm-debug.log*
+pm2.log*
