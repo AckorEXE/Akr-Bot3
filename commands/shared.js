@@ -1,36 +1,65 @@
+const { MessageMedia } = require('whatsapp-web.js');
+
 module.exports = async (msg) => {
-    try {
-        const args = msg.body.split(' ').slice(1);
+  try {
+    const rashidByDay = {
+      1: {
+        text: 'Los lunes se le puede encontrar en *Svargrond*, en la taberna de Dankwart, al sur del templo.',
+        image: 'https://static.wikia.nocookie.net/tibia/images/6/64/Rashid_Svargrond.png'
+      },
+      2: {
+        text: 'Los martes puedes encontrarle en *Liberty Bay*, en la taberna de Lyonel, al oeste de la estación.',
+        image: 'https://static.wikia.nocookie.net/tibia/images/0/09/Rashid_Liberty_Bay.png'
+      },
+      3: {
+        text: 'Los miércoles puedes encontrarle en *Port Hope*, en la taberna de Clyde, al oeste de la estación.',
+        image: 'https://static.wikia.nocookie.net/tibia/images/2/2b/Rashid_Port_Hope.png'
+      },
+      4: {
+        text: 'Los jueves se le puede encontrar en *Ankrahmun*, en la taberna de Arito, encima de la oficina de correos.',
+        image: 'https://static.wikia.nocookie.net/tibia/images/4/4c/Rashid_Ankrahmun.png'
+      },
+      5: {
+        text: 'Los viernes puedes encontrarle en *Darashia*, en la taberna de Miraia, al sur de los gremios.',
+        image: 'https://static.wikia.nocookie.net/tibia/images/9/92/Rashid_Darashia.png'
+      },
+      6: {
+        text: 'Los sábados puedes encontrarlo en *Edron*, en la taberna de Mirabell, encima del depósito.',
+        image: 'https://static.wikia.nocookie.net/tibia/images/5/52/Rashid_Edron.png'
+      },
+      0: {
+        text: 'Los domingos se le puede encontrar en el depósito de *Carlin*, un piso arriba.',
+        image: 'https://static.wikia.nocookie.net/tibia/images/8/86/Rashid_Carlin.png'
+      }
+    };
 
-        // ❌ Uso incorrecto
-        if (args.length !== 1 || isNaN(args[0])) {
-            const errorMsg = await msg.reply(
-                'Uso correcto: *!shared <nivel>*\nEjemplo: *!shared 45*'
-            );
-            await errorMsg.react('❎');
-            await msg.react('❎');
-            return null;
-        }
+    const today = new Date().getDay();
+    const rashid = rashidByDay[today];
 
-        const level = parseInt(args[0], 10);
-
-        const minLevel = Math.ceil(level / 1.5);
-        const maxLevel = Math.ceil(level * 1.5);
-
-        const text =`🧠 *Shared Experience*
-
-Un nivel *${level}* puede compartir experiencia con niveles *${minLevel}* a *${maxLevel}*.`;
-
-        // ✅ ÉXITO → devolver mensaje
-        return await msg.reply(text);
-
-    } catch (error) {
-        console.error('Error en comando shared:', error);
-
-        try {
-            await msg.react('❎');
-        } catch {}
-
-        throw error;
+    if (!rashid) {
+      const errMsg = await msg.reply('❌ No se pudo determinar la ubicación de Rashid hoy.');
+      await errMsg.react('❎');
+      return null;
     }
+
+    const caption =
+      `🧞 *Rashid – Comerciante Viajero*\n\n` +
+      `${rashid.text}\n\n` +
+      `💰 Compra armas, armaduras y objetos valiosos.\n` +
+      `📅 Rashid cambia de ciudad cada día.`;
+
+    const media = await MessageMedia.fromUrl(rashid.image);
+
+    // ✅ responder con imagen
+    return await msg.reply(media, undefined, { caption });
+
+  } catch (error) {
+    console.error('Error en comando rashid:', error);
+
+    try {
+      await msg.react('❎');
+    } catch {}
+
+    throw error;
+  }
 };
