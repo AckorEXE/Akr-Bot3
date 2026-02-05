@@ -1,3 +1,5 @@
+const { MessageMedia } = require('whatsapp-web.js');
+
 module.exports = async (msg) => {
   try {
     const rashidByDay = {
@@ -35,9 +37,7 @@ module.exports = async (msg) => {
     const rashid = rashidByDay[today];
 
     if (!rashid) {
-      const errMsg = await msg.reply('❌ No se pudo determinar la ubicación de Rashid hoy.');
-      await errMsg.react('❎');
-      return null;
+      return await msg.reply('❌ No se pudo determinar la ubicación de Rashid hoy.');
     }
 
     const caption =
@@ -48,7 +48,7 @@ module.exports = async (msg) => {
 
     const media = await MessageMedia.fromUrl(rashid.image);
 
-    // ✅ responder con imagen
+    // 👇 RESPUESTA CORRECTA (sin client)
     return await msg.reply(media, undefined, { caption });
 
   } catch (error) {
@@ -61,4 +61,3 @@ module.exports = async (msg) => {
     throw error;
   }
 };
-
