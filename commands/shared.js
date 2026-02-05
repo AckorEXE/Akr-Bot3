@@ -1,5 +1,3 @@
-const { MessageMedia } = require('whatsapp-web.js');
-
 module.exports = async (msg) => {
   try {
     const rashidByDay = {
@@ -63,3 +61,4 @@ module.exports = async (msg) => {
     throw error;
   }
 };
+
