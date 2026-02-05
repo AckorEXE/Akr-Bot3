@@ -1,11 +1,7 @@
-client.on('message', async (msg) => {
+const { MessageMedia } = require('whatsapp-web.js');
+
+module.exports = async (msg) => {
   try {
-    if (!msg.body) return;
-
-    const body = msg.body.toLowerCase().trim();
-
-    if (body !== '!rashid') return;
-
     const rashidByDay = {
       1: {
         text: 'Los lunes se le puede encontrar en *Svargrond*, en la taberna de Dankwart, al sur del templo.',
@@ -41,8 +37,7 @@ client.on('message', async (msg) => {
     const rashid = rashidByDay[today];
 
     if (!rashid) {
-      await msg.reply('❌ No se pudo determinar la ubicación de Rashid hoy.');
-      return;
+      return await msg.reply('❌ No se pudo determinar la ubicación de Rashid hoy.');
     }
 
     const caption =
@@ -53,10 +48,16 @@ client.on('message', async (msg) => {
 
     const media = await MessageMedia.fromUrl(rashid.image);
 
-    await client.sendMessage(msg.from, media, { caption });
+    // 👇 RESPUESTA CORRECTA (sin client)
+    return await msg.reply(media, undefined, { caption });
 
-  } catch (err) {
-    console.error('Error en comando !rashid:', err);
-    await msg.reply('❌ Ocurrió un error al obtener la información de Rashid.');
+  } catch (error) {
+    console.error('Error en comando rashid:', error);
+
+    try {
+      await msg.react('❎');
+    } catch {}
+
+    throw error;
   }
-});
+};
