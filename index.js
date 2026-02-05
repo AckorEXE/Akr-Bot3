@@ -20,6 +20,7 @@ const commandEmojis = {
     item: '🛡️',
     monster: '👾',
     shared: '🧠',
+    rashid: '💰',
 
     // menú
     menu: '💛',
@@ -42,6 +43,7 @@ const cooldownCommands = {
     sticker: 5,
     item: 5,
     monster: 5,
+    rashid: 5,
     shared: 5
 };
 
@@ -135,6 +137,7 @@ const kick = require('./commands/kick');
 const shared = require('./commands/shared');
 const item = require('./commands/item');
 const monster = require('./commands/monster');
+const rashid = require('./commands/rashid');
 const sticker = require('./commands/sticker');
 const elfbot = require('./commands/elfbot');
 const client860 = require('./commands/client860');
@@ -150,6 +153,7 @@ const commands = {
     shared,
     item,
     monster,
+    rashid,
 
     sticker,
     s: sticker,
@@ -338,3 +342,4 @@ process.on('uncaughtException', (err) => {
   console.error('Uncaught Exception:', err);
   process.exit(1);
 });
+
