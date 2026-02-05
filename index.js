@@ -20,7 +20,7 @@ const commandEmojis = {
     item: '🛡️',
     monster: '👾',
     shared: '🧠',
-    rashid: '💰',
+    rashid: '🧞',
 
     // menú
     menu: '💛',
@@ -342,4 +342,5 @@ process.on('uncaughtException', (err) => {
   console.error('Uncaught Exception:', err);
   process.exit(1);
 });
+
 
