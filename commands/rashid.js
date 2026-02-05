@@ -5,31 +5,31 @@ module.exports = async (msg) => {
     const rashidByDay = {
       1: {
         text: 'Los lunes se le puede encontrar en *Svargrond*, en la taberna de Dankwart, al sur del templo.',
-        image: 'https://static.wikia.nocookie.net/tibia/images/6/64/Rashid_Svargrond.png'
+        image: 'https://i.imgur.com/4By9VMT.jpeg'
       },
       2: {
-        text: 'Los martes puedes encontrarle en *Liberty Bay*, en la taberna de Lyonel, al oeste de la estación.',
-        image: 'https://static.wikia.nocookie.net/tibia/images/0/09/Rashid_Liberty_Bay.png'
+        text: 'Los martes puedes encontrarle en *Liberty Bay*, en la taberna de Lyonel, al oeste del depot.',
+        image: 'https://i.imgur.com/CkxkWZm.jpeg'
       },
       3: {
-        text: 'Los miércoles puedes encontrarle en *Port Hope*, en la taberna de Clyde, al oeste de la estación.',
-        image: 'https://static.wikia.nocookie.net/tibia/images/2/2b/Rashid_Port_Hope.png'
+        text: 'Los miércoles puedes encontrarle en *Port Hope*, en la taberna de Clyde, al oeste del depot.',
+        image: 'https://i.imgur.com/laKpglm.jpeg'
       },
       4: {
         text: 'Los jueves se le puede encontrar en *Ankrahmun*, en la taberna de Arito, encima de la oficina de correos.',
-        image: 'https://static.wikia.nocookie.net/tibia/images/4/4c/Rashid_Ankrahmun.png'
+        image: 'https://i.imgur.com/ybYUrlW.jpeg'
       },
       5: {
         text: 'Los viernes puedes encontrarle en *Darashia*, en la taberna de Miraia, al sur de los gremios.',
-        image: 'https://static.wikia.nocookie.net/tibia/images/9/92/Rashid_Darashia.png'
+        image: 'https://i.imgur.com/HS8sHAx.jpeg'
       },
       6: {
-        text: 'Los sábados puedes encontrarlo en *Edron*, en la taberna de Mirabell, encima del depósito.',
-        image: 'https://static.wikia.nocookie.net/tibia/images/5/52/Rashid_Edron.png'
+        text: 'Los sábados puedes encontrarlo en *Edron*, en la taberna de Mirabell, encima del depot.',
+        image: 'https://i.imgur.com/YxClix3.jpeg'
       },
       0: {
-        text: 'Los domingos se le puede encontrar en el depósito de *Carlin*, un piso arriba.',
-        image: 'https://static.wikia.nocookie.net/tibia/images/8/86/Rashid_Carlin.png'
+        text: 'Los domingos se le puede encontrar en el depot de *Carlin*, un piso arriba.',
+        image: 'https://i.imgur.com/vyhoj4T.jpeg'
       }
     };
 
@@ -41,7 +41,7 @@ module.exports = async (msg) => {
     }
 
     const caption =
-      `🧞 *Rashid – Comerciante Viajero*\n\n` +
+      `*Rashid*\n\n` +
       `${rashid.text}\n\n` +
       `💰 Compra armas, armaduras y objetos valiosos.\n` +
       `📅 Rashid cambia de ciudad cada día.`;
