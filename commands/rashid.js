@@ -1,5 +1,3 @@
-const { MessageMedia } = require('whatsapp-web.js');
-
 client.on('message', async (msg) => {
   try {
     if (!msg.body) return;
