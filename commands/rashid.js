@@ -1,4 +1,5 @@
 const { MessageMedia } = require('whatsapp-web.js');
+const axios = require('axios');
 
 module.exports = async (msg) => {
   try {
@@ -46,9 +47,17 @@ module.exports = async (msg) => {
       `💰 Compra armas, armaduras y objetos valiosos.\n` +
       `📅 Rashid cambia de ciudad cada día.`;
 
-    const media = await MessageMedia.fromUrl(rashid.image);
+    // ⬇ DESCARGA SEGURA DE LA IMAGEN
+    const response = await axios.get(rashid.image, {
+      responseType: 'arraybuffer'
+    });
 
-    // 👇 RESPUESTA CORRECTA (sin client)
+    const media = new MessageMedia(
+      'image/jpeg',
+      Buffer.from(response.data).toString('base64'),
+      'rashid.jpg'
+    );
+
     return await msg.reply(media, undefined, { caption });
 
   } catch (error) {
