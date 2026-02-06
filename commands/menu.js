@@ -13,6 +13,7 @@ module.exports = async (msg) => {
 ├🛡️ *!item* <nombre>  
 ├👾 *!monster* <nombre>  
 ├🤝 *!shared* <nivel>  
+├🧞 *!rashid*
 
 📥 *Descargas*  
 ├🧩 *!elfbot*  
@@ -21,4 +22,5 @@ module.exports = async (msg) => {
 └───────────`;
 
     return await msg.reply(text);
+
 };
