@@ -34,18 +34,27 @@ module.exports = async (msg) => {
       }
     };
 
-    const today = new Date().getDay();
-    const rashid = rashidByDay[today];
+    // 🕒 Hora actual en Alemania (Server Save depende de esto)
+    const nowBerlin = new Date(
+      new Date().toLocaleString('en-US', { timeZone: 'Europe/Berlin' })
+    );
+
+    const serverSaveHour = 10; // 10:00 AM Berlín
+    let day = nowBerlin.getDay();
+
+    // ⏳ Si aún NO pasa el Server Save, usar el día anterior
+    if (nowBerlin.getHours() < serverSaveHour) {
+      day = (day - 1 + 7) % 7;
+    }
+
+    const rashid = rashidByDay[day];
 
     if (!rashid) {
       return await msg.reply('❌ No se pudo determinar la ubicación de Rashid hoy.');
     }
 
-    const caption =
-      `*Rashid*\n\n` +
-      `${rashid.text}\n\n` +
-      `💰 Compra armas, armaduras y objetos valiosos.\n` +
-      `📅 Rashid cambia de ciudad cada día.`;
+    const caption =`${rashid.text}\n\n` +
+      `💰 Compra armas, armaduras y objetos valiosos.\n`;
 
     const imagePath = path.join(__dirname, '..', 'images', rashid.file);
     const media = MessageMedia.fromFilePath(imagePath);
