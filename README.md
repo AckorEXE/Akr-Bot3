@@ -92,7 +92,3 @@ Actualización de Whatsapp-Web.js con integración Webpack-exodus
 ```bash
 npm install github:pedroslopez/whatsapp-web.js#webpack-exodus
 ```
-
-### `—◉ 👑 DUDAS SOBRE EL BOT?, CONTACTAME 👑`
-<a href="http://wa.me/528251002140" target="blank"><img src="https://img.shields.io/badge/ACKOR-25D366?style=for-the-badge&logo=whatsapp&logoColor=white" /></a>
-
