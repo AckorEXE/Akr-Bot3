@@ -5,7 +5,7 @@ module.exports = async (msg) => {
   try {
     const args = msg.body.split(' ').slice(1);
 
-    // uso incorrecto
+    // ❌ Sin argumentos
     if (args.length === 0) {
       const errorMsg = await msg.reply(
         'Uso correcto: *!item <nombre>*\nEjemplo: *!item magic sword*'
@@ -15,12 +15,22 @@ module.exports = async (msg) => {
       return null;
     }
 
-    const itemName = args.join('-').toLowerCase();
-    const url = `https://tiblioteca.com/item/${encodeURIComponent(itemName)}`;
+    // 🔧 Formato para TibiaWiki
+    const itemName = args
+      .join('_')
+      .replace(/'/g, '')
+      .replace(/[^a-zA-Z0-9_]/g, '')
+      .trim();
+
+    const url = `https://tibia.fandom.com/wiki/${itemName}`;
 
     let response;
     try {
-      response = await axios.get(url);
+      response = await axios.get(url, {
+        headers: {
+          'User-Agent': 'Mozilla/5.0'
+        }
+      });
     } catch {
       const errorMsg = await msg.reply(
         'No se pudo obtener información del item.'
@@ -32,31 +42,36 @@ module.exports = async (msg) => {
 
     const $ = cheerio.load(response.data);
 
-    // info principal
-    let mainInfo = $('.col.text-start.bg-texto-verde').text().trim();
-
-    // drop info
-    let droppedBy = $('.list-group li')
+    // 🧾 Descripción principal
+    let description = $('.mw-parser-output p')
       .first()
-      .clone()
-      .children('strong')
-      .remove()
-      .end()
       .text()
       .trim();
 
-    // limpieza
+    // 📊 Info de tabla (atributos)
+    let attributes = [];
+
+    $('.infobox tr').each((i, el) => {
+      const key = $(el).find('th').text().trim();
+      const value = $(el).find('td').text().trim();
+
+      if (key && value) {
+        attributes.push(`• *${key}:* ${value}`);
+      }
+    });
+
+    // 🧹 limpieza
     const clean = (text) =>
       text
+        .replace(/\[\d+\]/g, '') // quita referencias tipo [1]
         .replace(/\s+/g, ' ')
-        .replace(/\.([A-Za-z])/g, '. $1')
         .trim();
 
-    mainInfo = clean(mainInfo);
-    droppedBy = clean(droppedBy);
+    description = clean(description);
+    attributes = attributes.map(clean);
 
-    // error, sin info
-    if (!mainInfo && !droppedBy) {
+    // ❌ Sin info
+    if (!description) {
       const errorMsg = await msg.reply(
         'No se encontró información para ese item.'
       );
@@ -65,20 +80,20 @@ module.exports = async (msg) => {
       return null;
     }
 
-    // construcción del mensaje
+    // ✉️ Construcción del mensaje
     let text = `📦 *${args.join(' ')}*\n\n`;
 
-    if (mainInfo) {
-      text += `ℹ️ ${mainInfo}\n\n`;
-    }
+    text += `ℹ️ ${description}\n\n`;
 
-    if (droppedBy) {
-      text += `🎁 *Dropped by:* ${droppedBy}\n\n`;
+    if (attributes.length > 0) {
+      text += `📊 *Atributos:*\n`;
+      text += attributes.slice(0, 8).join('\n'); // limitamos para no saturar
+      text += `\n\n`;
     }
 
     text += `🔎 ${url}`;
 
-    // exito
+    // ✅ Enviar
     const sentMessage = await msg.reply(text);
     await sentMessage.react('📚');
 
@@ -91,6 +106,6 @@ module.exports = async (msg) => {
       await msg.react('❎');
     } catch {}
 
-    throw error;
+    return null;
   }
 };
