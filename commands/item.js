@@ -1,33 +1,38 @@
 const axios = require('axios');
 
-// 🔧 Formatear nombre
-function formatItemName(text) {
-  const exceptions = ['of', 'the', 'and', 'in', 'on', 'at'];
+// 🧠 limpiar valores inválidos
+function cleanValue(val) {
+  if (!val) return null;
 
-  return text
-    .toLowerCase()
-    .split(' ')
-    .map(word => {
-      if (exceptions.includes(word)) return word;
-      return word.charAt(0).toUpperCase() + word.slice(1);
-    })
-    .join('_');
+  val = val.trim();
+
+  if (
+    val.startsWith('|') ||
+    val.includes('=') ||
+    val === '--' ||
+    val === ''
+  ) return null;
+
+  return val;
 }
 
-// 🧠 Buscar múltiples keys
+// 🔧 buscar múltiples keys
 function getMulti(raw, keys) {
   for (const key of keys) {
     const regex = new RegExp(`\\|\\s*${key}\\s*=\\s*([^\\n]+)`, 'i');
     const match = raw.match(regex);
-    if (match) return match[1].trim();
+
+    if (match) {
+      const value = cleanValue(match[1]);
+      if (value) return value;
+    }
   }
   return null;
 }
 
-// 🎁 FIX DROPPED BY (IMPORTANTE)
+// 🎁 dropped by FIX
 function parseDroppedBy(raw) {
   const match = raw.match(/\|\s*droppedby\s*=\s*\{\{Dropped By\|([^}]+)\}\}/i);
-
   if (!match) return null;
 
   return match[1]
@@ -37,12 +42,11 @@ function parseDroppedBy(raw) {
     .join(', ');
 }
 
-// 🛒 NPC parser mejorado
+// 🛒 NPC parser
 function parseNPC(raw, key) {
   const data = getMulti(raw, [key]);
-  if (!data) return null;
+  if (!data || data === '--') return null;
 
-  // caso template
   const matches = [...data.matchAll(/\{\{NPC Trade\|([^}]+)\}\}/g)];
 
   if (matches.length) {
@@ -52,11 +56,10 @@ function parseNPC(raw, key) {
     }).join('\n');
   }
 
-  // fallback texto plano
-  return data.replace(/\{\{|\}\}/g, '').replace(/\|/g, ', ');
+  return null;
 }
 
-// 🧠 Parse completo
+// 🧠 parse stats
 function parseStats(raw) {
   return {
     name: getMulti(raw, ['name']),
@@ -78,6 +81,7 @@ function parseStats(raw) {
     range: getMulti(raw, ['range']),
     lifeleech: getMulti(raw, ['lifeleech']),
     manacost: getMulti(raw, ['manacost']),
+
     damagetype: getMulti(raw, ['damagetype']),
     damagerange: getMulti(raw, ['damagerange']),
 
@@ -100,29 +104,26 @@ function parseStats(raw) {
 module.exports = async (msg) => {
   try {
     const args = msg.body.split(' ').slice(1);
+    if (!args.length) return msg.reply('Uso correcto: *!item <nombre>*');
 
-    if (!args.length) {
-      await msg.reply('Uso correcto: *!item <nombre>*');
-      return;
-    }
-
-    const rawQuery = args.join(' ');
+    const query = args.join(' ');
 
     // 🔎 buscar
-    const searchUrl = `https://tibia.fandom.com/api.php?action=query&list=search&srsearch=${encodeURIComponent(rawQuery)}&format=json`;
-    const searchRes = await axios.get(searchUrl);
+    const searchRes = await axios.get(
+      `https://tibia.fandom.com/api.php?action=query&list=search&srsearch=${encodeURIComponent(query)}&format=json`
+    );
 
     const results = searchRes.data?.query?.search || [];
     if (!results.length) return msg.reply('❌ No encontrado.');
 
-    const selected = results[0];
-    const title = selected.title.replace(/ /g, '_');
+    const title = results[0].title.replace(/ /g, '_');
 
     console.log('✅ Usando:', title);
 
     // 🔥 raw
-    const rawUrl = `https://tibia.fandom.com/api.php?action=query&prop=revisions&titles=${title}&rvprop=content&format=json`;
-    const rawRes = await axios.get(rawUrl);
+    const rawRes = await axios.get(
+      `https://tibia.fandom.com/api.php?action=query&prop=revisions&titles=${title}&rvprop=content&format=json`
+    );
 
     const page = Object.values(rawRes.data.query.pages)[0];
     const content = page?.revisions?.[0]?.['*'];
@@ -131,7 +132,7 @@ module.exports = async (msg) => {
 
     const s = parseStats(content);
 
-    let text = `📦 *${s.name || selected.title}*\n\n`;
+    let text = `📦 *${s.name || results[0].title}*\n\n`;
 
     if (s.itemid) text += `🆔 ID: ${s.itemid}\n`;
 
@@ -151,18 +152,23 @@ module.exports = async (msg) => {
 
     if (s.range) text += `🏹 Rango: ${s.range}\n`;
 
+    if (s.manacost) text += `🔮 Mana: ${s.manacost}\n`;
+
     if (s.imbueslots) text += `💠 Imbuing Slots: ${s.imbueslots}\n`;
     if (s.upgradeclass) text += `⬆️ Upgrade Class: ${s.upgradeclass}\n`;
 
     if (s.attributes) text += `✨ Atributos: ${s.attributes}\n`;
     if (s.resist) text += `🛡️ Resistencias: ${s.resist}\n`;
 
-    if (s.critchance) text += `🎯 Crit Chance: ${s.critchance}\n`;
-    if (s.critdamage) text += `💥 Crit Damage: ${s.critdamage}\n`;
+    if (s.critchance)
+      text += `🎯 Probabilidad crítica extra: ${s.critchance}\n`;
+
+    if (s.critdamage)
+      text += `💥 Daño crítico extra: ${s.critdamage}\n`;
 
     if (s.weight) text += `⚖️ Peso: ${s.weight}\n`;
 
-    // ✅ SOLO SI > 0
+    // ✅ solo si > 0
     if (s.npcprice && parseInt(s.npcprice) > 0)
       text += `🛒 Compra NPC: ${s.npcprice} gp\n`;
 
@@ -172,7 +178,6 @@ module.exports = async (msg) => {
     if (s.buyfrom) text += `\n🛍️ Compra en:\n${s.buyfrom}\n`;
     if (s.sellto) text += `\n💸 Vende a:\n${s.sellto}\n`;
 
-    // 🔥 FIX DROPS + TEXTO NUEVO
     if (s.droppedby)
       text += `\n🎁 Looteada por:\n${s.droppedby}\n`;
 
