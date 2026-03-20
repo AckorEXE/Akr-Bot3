@@ -14,7 +14,7 @@ function formatItemName(text) {
     .join('_');
 }
 
-// 🧠 Extraer datos clave del template
+// 🧠 Extraer datos del template
 function parseStats(raw) {
   const get = (key) => {
     const regex = new RegExp(`\\|\\s*${key}\\s*=\\s*([^|]+)`);
@@ -31,7 +31,18 @@ function parseStats(raw) {
     level: get('levelrequired'),
     vocation: get('vocrequired'),
     weight: get('weight'),
-    value: get('value')
+    value: get('value'),
+
+    // 🔥 NUEVOS
+    imbueslots: get('imbueslots'),
+    upgradeclass: get('upgradeclass'),
+    range: get('range'),
+    lifeleech: get('lifeleech'),
+    manacost: get('manacost'),
+    damagetype: get('damagetype'),
+    damagerange: get('damagerange'),
+    attributes: get('attributes'),
+    resist: get('resist')
   };
 }
 
@@ -40,20 +51,15 @@ module.exports = async (msg) => {
     const args = msg.body.split(' ').slice(1);
 
     if (args.length === 0) {
-      const errorMsg = await msg.reply(
-        'Uso correcto: *!item <nombre>*'
-      );
+      const errorMsg = await msg.reply('Uso correcto: *!item <nombre>*');
       await errorMsg.react('❎');
       await msg.react('❎');
       return null;
     }
 
     const rawQuery = args.join(' ');
-    const formattedName = formatItemName(rawQuery);
 
-    console.log('🔍 Intento directo:', formattedName);
-
-    // 🔎 búsqueda
+    // 🔎 buscar
     const searchUrl = `https://tibia.fandom.com/api.php?action=query&list=search&srsearch=${encodeURIComponent(rawQuery)}&format=json`;
     const searchRes = await axios.get(searchUrl);
 
@@ -76,7 +82,7 @@ module.exports = async (msg) => {
     const selected = valid || results[0];
     const correctTitle = selected.title.replace(/ /g, '_');
 
-    console.log('✅ Usando resultado:', correctTitle);
+    console.log('✅ Usando:', correctTitle);
 
     // 🔥 obtener raw
     const rawUrl = `https://tibia.fandom.com/api.php?action=query&prop=revisions&titles=${correctTitle}&rvprop=content&format=json`;
@@ -96,7 +102,7 @@ module.exports = async (msg) => {
 
     const stats = parseStats(content);
 
-    // 🧾 construir respuesta bonita
+    // 🧾 RESPUESTA
     let text = `📦 *${stats.name || selected.title}*\n\n`;
 
     if (stats.attack) text += `⚔️ Ataque: ${stats.attack}\n`;
@@ -109,8 +115,37 @@ module.exports = async (msg) => {
 
     if (stats.level) text += `🎯 Nivel: ${stats.level}\n`;
     if (stats.vocation) text += `🧙 Vocación: ${stats.vocation}\n`;
-    if (stats.weight) text += `⚖️ Peso: ${stats.weight}\n`;
-    if (stats.value) text += `💰 Valor: ${stats.value}\n`;
+
+    // 🔥 NUEVOS BLOQUES
+    if (stats.damagerange)
+      text += `💥 Daño: ${stats.damagerange} (${stats.damagetype || ''})\n`;
+
+    if (stats.range)
+      text += `🏹 Rango: ${stats.range}\n`;
+
+    if (stats.lifeleech)
+      text += `🩸 Life Leech: ${stats.lifeleech}\n`;
+
+    if (stats.manacost)
+      text += `🔮 Mana: ${stats.manacost}\n`;
+
+    if (stats.imbueslots)
+      text += `💠 Imbuing Slots: ${stats.imbueslots}\n`;
+
+    if (stats.upgradeclass)
+      text += `⬆️ Upgrade Class: ${stats.upgradeclass}\n`;
+
+    if (stats.attributes)
+      text += `✨ Atributos: ${stats.attributes}\n`;
+
+    if (stats.resist)
+      text += `🛡️ Resistencias: ${stats.resist}\n`;
+
+    if (stats.weight)
+      text += `⚖️ Peso: ${stats.weight}\n`;
+
+    if (stats.value)
+      text += `💰 Valor: ${stats.value}\n`;
 
     text += `\n🔎 https://tibia.fandom.com/wiki/${correctTitle}`;
 
