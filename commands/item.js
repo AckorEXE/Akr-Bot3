@@ -8,7 +8,6 @@ function cleanValue(val) {
 
   if (
     val.startsWith('|') ||
-    val.includes('=') ||
     val === '--' ||
     val === ''
   ) return null;
@@ -30,7 +29,7 @@ function getMulti(raw, keys) {
   return null;
 }
 
-// 🎁 dropped by FIX
+// 🎁 dropped by
 function parseDroppedBy(raw) {
   const match = raw.match(/\|\s*droppedby\s*=\s*\{\{Dropped By\|([^}]+)\}\}/i);
   if (!match) return null;
@@ -42,21 +41,38 @@ function parseDroppedBy(raw) {
     .join(', ');
 }
 
-// 🛒 NPC parser
+// 🛒 NPC parser FULL FIX
 function parseNPC(raw, key) {
   const data = getMulti(raw, [key]);
-  if (!data || data === '--') return null;
+  if (!data) return null;
 
-  const matches = [...data.matchAll(/\{\{NPC Trade\|([^}]+)\}\}/g)];
+  let result = [];
+
+  // 🔹 1. detectar templates
+  const matches = [...data.matchAll(/\{\{NPC Trade\|([^}]+)\}\}/gi)];
 
   if (matches.length) {
-    return matches.map(m => {
+    matches.forEach(m => {
       const parts = m[1].split('|');
-      return `${parts[0]} (${parts[1]}) - ${parts[2]} gp`;
-    }).join('\n');
+      if (parts.length >= 3) {
+        result.push(`${parts[0]} (${parts[1]}) - ${parts[2]} gp`);
+      }
+    });
   }
 
-  return null;
+  // 🔹 2. fallback texto plano
+  if (!result.length) {
+    const cleaned = data
+      .replace(/\{\{|\}\}/g, '')
+      .replace(/\|/g, ', ')
+      .trim();
+
+    if (cleaned && cleaned !== '--') {
+      result.push(cleaned);
+    }
+  }
+
+  return result.length ? result.join('\n') : null;
 }
 
 // 🧠 parse stats
@@ -90,9 +106,13 @@ function parseStats(raw) {
     critchance: getMulti(raw, ['critchance', 'crithit_ch']),
     critdamage: getMulti(raw, ['critdamage', 'critextra_dmg']),
 
-    // 🔥 NUEVO LIFE LEECH CORRECTO
+    // 🔥 LIFE LEECH
     hpleech_ch: getMulti(raw, ['hpleech_ch']),
     hpleech_am: getMulti(raw, ['hpleech_am']),
+
+    // 🔥 NUEVOS
+    augments: getMulti(raw, ['augments']),
+    mantra: getMulti(raw, ['mantra']),
 
     droppedby: parseDroppedBy(raw),
 
@@ -136,6 +156,7 @@ module.exports = async (msg) => {
     const s = parseStats(content);
 
     let text = `📦 *${s.name || results[0].title}*\n\n`;
+
     if (s.itemid) text += `🆔 ID: ${s.itemid}\n`;
 
     if (s.level) text += `🎯 Nivel: ${s.level}\n`;
@@ -152,7 +173,6 @@ module.exports = async (msg) => {
     if (s.critdamage)
       text += `💥 Daño crítico extra: ${s.critdamage}\n`;
 
-    // 🔥 NUEVO BLOQUE LIFE LEECH
     if (s.hpleech_ch)
       text += `🎯 Probabilidad robo de vida: ${s.hpleech_ch}\n`;
 
@@ -172,6 +192,10 @@ module.exports = async (msg) => {
 
     if (s.attributes) text += `✨ Atributos: ${s.attributes}\n`;
     if (s.resist) text += `🛡️ Resistencias: ${s.resist}\n`;
+
+    // 🔥 NUEVOS
+    if (s.augments) text += `🧩 Augments: ${s.augments}\n`;
+    if (s.mantra) text += `🌀 Mantra: ${s.mantra}\n`;
 
     if (s.weight) text += `⚖️ Peso: ${s.weight}\n`;
 
