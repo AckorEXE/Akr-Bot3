@@ -1,6 +1,6 @@
 const axios = require('axios');
 
-// 🔧 Capitalizar tipo "Wand Of Vortex"
+// 🔧 Capitalizar tipo "Wand Of Vortex" → Wand_of_Vortex
 function formatItemName(text) {
   const exceptions = ['of', 'the', 'and', 'in', 'on', 'at'];
 
@@ -27,12 +27,12 @@ module.exports = async (msg) => {
       return null;
     }
 
-    const rawQuery = args.join(' ');
+    const rawQuery = args.join(' ').trim();
     const formattedName = formatItemName(rawQuery);
 
     console.log('🔍 Intento directo:', formattedName);
 
-    // 🔹 1. Intento directo (rápido)
+    // 🔹 1. Intento directo
     let infoUrl = `https://tibia.fandom.com/api.php?action=query&prop=extracts&titles=${formattedName}&format=json&exintro=1&explaintext=1`;
 
     let infoRes = await axios.get(infoUrl);
@@ -65,37 +65,70 @@ module.exports = async (msg) => {
       });
 
       const selected = valid || results[0];
+
       const correctTitle = selected.title.replace(/ /g, '_');
+      const displayTitle = selected.title;
 
       console.log('✅ Usando resultado:', correctTitle);
 
-      // volver a pedir info
+      // 🔹 Obtener info
       infoUrl = `https://tibia.fandom.com/api.php?action=query&prop=extracts&titles=${correctTitle}&format=json&exintro=1&explaintext=1`;
       infoRes = await axios.get(infoUrl);
       page = Object.values(infoRes.data.query.pages)[0];
 
+      // 🔥 FALLBACK SI NO HAY EXTRACT
       if (!page || !page.extract) {
-        const errorMsg = await msg.reply('❌ No se pudo obtener información.');
-        await errorMsg.react('❎');
-        await msg.react('❎');
-        return null;
+        console.log('⚠️ Sin extract, usando contenido crudo...');
+
+        const rawUrl = `https://tibia.fandom.com/api.php?action=query&prop=revisions&titles=${correctTitle}&rvprop=content&format=json`;
+        const rawRes = await axios.get(rawUrl);
+
+        const rawPages = rawRes.data.query.pages;
+        const rawPage = Object.values(rawPages)[0];
+
+        let content = rawPage?.revisions?.[0]?.['*'] || '';
+
+        if (!content) {
+          const errorMsg = await msg.reply('❌ No se pudo obtener información.');
+          await errorMsg.react('❎');
+          await msg.react('❎');
+          return null;
+        }
+
+        // 🧹 limpiar markup wiki
+        content = content
+          .replace(/\{\{[^}]+\}\}/g, '')
+          .replace(/\[\[|\]\]/g, '')
+          .replace(/==.*==/g, '')
+          .replace(/\s+/g, ' ')
+          .trim();
+
+        if (content.length > 700) {
+          content = content.slice(0, 700) + '...';
+        }
+
+        return sendResponse(msg, displayTitle, content);
       }
 
-      return sendResponse(msg, selected.title, page.extract);
+      return sendResponse(msg, displayTitle, page.extract);
     }
 
     // ✅ éxito directo
     return sendResponse(msg, rawQuery, page.extract);
 
   } catch (err) {
-    console.log('❌ ERROR:', err.message);
+    console.log('❌ ERROR COMPLETO:');
+    console.log('Mensaje:', err.message);
 
     if (err.response) {
       console.log('Status:', err.response.status);
+      console.log('Data:', err.response.data);
     }
 
     try {
-      const errorMsg = await msg.reply(`❌ Error: ${err.message}`);
+      const errorMsg = await msg.reply(
+        `❌ Error real:\n${err.response?.status || ''} ${err.message}`
+      );
       await errorMsg.react('❎');
       await msg.react('❎');
     } catch {}
@@ -104,7 +137,7 @@ module.exports = async (msg) => {
   }
 };
 
-// 📦 respuesta limpia
+// 📦 RESPUESTA FINAL
 async function sendResponse(msg, title, extract) {
   let description = extract
     .replace(/\s+/g, ' ')
