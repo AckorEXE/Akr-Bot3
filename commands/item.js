@@ -133,10 +133,21 @@ module.exports = async (msg) => {
     const s = parseStats(content);
 
     let text = `📦 *${s.name || results[0].title}*\n\n`;
-
     if (s.itemid) text += `🆔 ID: ${s.itemid}\n`;
 
+    if (s.level) text += `🎯 Nivel: ${s.level}\n`;
+    if (s.vocation) text += `🧙 Vocación: ${s.vocation}\n`;
+
+
     if (s.attack) text += `⚔️ Ataque: ${s.attack}\n`;
+    if (s.damagerange)
+      text += `💥 Daño: ${s.damagerange} (${s.damagetype || ''})\n`;
+    if (s.range) text += `🏹 Rango: ${s.range}\n`;
+
+    if (s.critchance)
+      text += `🎯 Probabilidad crítica extra: ${s.critchance}\n`;
+    if (s.critdamage)
+      text += `💥 Daño crítico extra: ${s.critdamage}\n`;
 
     if (s.defense || s.armor) {
       text += `🛡️ Defensa: ${s.defense || s.armor}`;
@@ -144,13 +155,7 @@ module.exports = async (msg) => {
       text += `\n`;
     }
 
-    if (s.level) text += `🎯 Nivel: ${s.level}\n`;
-    if (s.vocation) text += `🧙 Vocación: ${s.vocation}\n`;
-
-    if (s.damagerange)
-      text += `💥 Daño: ${s.damagerange} (${s.damagetype || ''})\n`;
-
-    if (s.range) text += `🏹 Rango: ${s.range}\n`;
+    if (s.lifeleech) text += `🩸 Robo de vida: ${s.lifeleech}\n`;
 
     if (s.manacost) text += `🔮 Mana: ${s.manacost}\n`;
 
@@ -159,13 +164,7 @@ module.exports = async (msg) => {
 
     if (s.attributes) text += `✨ Atributos: ${s.attributes}\n`;
     if (s.resist) text += `🛡️ Resistencias: ${s.resist}\n`;
-
-    if (s.critchance)
-      text += `🎯 Probabilidad crítica extra: ${s.critchance}\n`;
-
-    if (s.critdamage)
-      text += `💥 Daño crítico extra: ${s.critdamage}\n`;
-
+    
     if (s.weight) text += `⚖️ Peso: ${s.weight}\n`;
 
     // ✅ solo si > 0
