@@ -14,35 +14,53 @@ function formatItemName(text) {
     .join('_');
 }
 
-// 🧠 Extraer datos del template
-function parseStats(raw) {
-  const get = (key) => {
-    const regex = new RegExp(`\\|\\s*${key}\\s*=\\s*([^|]+)`);
+// 🧠 Obtener múltiples posibles nombres
+function getMulti(raw, keys) {
+  for (const key of keys) {
+    const regex = new RegExp(`\\|\\s*${key}\\s*=\\s*([^|]+)`, 'i');
     const match = raw.match(regex);
-    return match ? match[1].trim() : null;
-  };
+    if (match) return match[1].trim();
+  }
+  return null;
+}
 
+// 🧠 Extraer stats completos
+function parseStats(raw) {
   return {
-    name: get('name'),
-    attack: get('attack'),
-    defense: get('defense'),
-    defensemod: get('defensemod'),
-    armor: get('armor'),
-    level: get('levelrequired'),
-    vocation: get('vocrequired'),
-    weight: get('weight'),
-    value: get('value'),
+    name: getMulti(raw, ['name']),
+    attack: getMulti(raw, ['attack']),
+    defense: getMulti(raw, ['defense']),
+    defensemod: getMulti(raw, ['defensemod']),
+    armor: getMulti(raw, ['armor']),
+    level: getMulti(raw, ['levelrequired']),
+    vocation: getMulti(raw, ['vocrequired']),
+    weight: getMulti(raw, ['weight']),
+    value: getMulti(raw, ['value']),
 
-    // 🔥 NUEVOS
-    imbueslots: get('imbueslots'),
-    upgradeclass: get('upgradeclass'),
-    range: get('range'),
-    lifeleech: get('lifeleech'),
-    manacost: get('manacost'),
-    damagetype: get('damagetype'),
-    damagerange: get('damagerange'),
-    attributes: get('attributes'),
-    resist: get('resist')
+    imbueslots: getMulti(raw, ['imbueslots']),
+    upgradeclass: getMulti(raw, ['upgradeclass']),
+    range: getMulti(raw, ['range']),
+    lifeleech: getMulti(raw, ['lifeleech']),
+    manacost: getMulti(raw, ['manacost']),
+    damagetype: getMulti(raw, ['damagetype']),
+    damagerange: getMulti(raw, ['damagerange']),
+
+    // 🔥 IMPORTANTES
+    attributes: getMulti(raw, ['attributes', 'attribute']),
+    resist: getMulti(raw, ['resist', 'resists']),
+
+    // 🔥 CRITICOS
+    critchance: getMulti(raw, [
+      'extracriticalchance',
+      'criticalchance',
+      'critchance'
+    ]),
+
+    critdamage: getMulti(raw, [
+      'extracriticaldamage',
+      'criticaldamage',
+      'critdamage'
+    ])
   };
 }
 
@@ -116,7 +134,6 @@ module.exports = async (msg) => {
     if (stats.level) text += `🎯 Nivel: ${stats.level}\n`;
     if (stats.vocation) text += `🧙 Vocación: ${stats.vocation}\n`;
 
-    // 🔥 NUEVOS BLOQUES
     if (stats.damagerange)
       text += `💥 Daño: ${stats.damagerange} (${stats.damagetype || ''})\n`;
 
@@ -135,11 +152,18 @@ module.exports = async (msg) => {
     if (stats.upgradeclass)
       text += `⬆️ Upgrade Class: ${stats.upgradeclass}\n`;
 
+    // 🔥 AQUÍ ESTABA EL PROBLEMA (YA FIX)
     if (stats.attributes)
       text += `✨ Atributos: ${stats.attributes}\n`;
 
     if (stats.resist)
       text += `🛡️ Resistencias: ${stats.resist}\n`;
+
+    if (stats.critchance)
+      text += `🎯 Crit Chance: ${stats.critchance}\n`;
+
+    if (stats.critdamage)
+      text += `💥 Crit Damage: ${stats.critdamage}\n`;
 
     if (stats.weight)
       text += `⚖️ Peso: ${stats.weight}\n`;
