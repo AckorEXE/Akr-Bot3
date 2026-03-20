@@ -194,16 +194,16 @@ module.exports = async (msg) => {
     if (s.weight) text += `⚖️ *Peso:* ${s.weight} oz\n`;
 
     if (s.npcprice && parseInt(s.npcprice) > 0)
-      text += `🛒 Compra NPC: ${s.npcprice} gp\n`;
+      text += `🛒 *Comprar en:* ${s.npcprice} gp\n`;
 
     if (s.npcvalue && parseInt(s.npcvalue) > 0)
-      text += `💰 Venta NPC: ${s.npcvalue} gp\n`;
+      text += `💰 *Vender en:* ${s.npcvalue} gp\n`;
 
-    if (s.buyfrom) text += `\n🛍️ Compra en:\n${s.buyfrom}\n`;
-    if (s.sellto) text += `\n💸 Vende a:\n${s.sellto}\n`;
+    if (s.buyfrom) text += `\n🛍️ *Compra en:*\n${s.buyfrom}\n`;
+    if (s.sellto) text += `\n💸 *Vende a:*\n${s.sellto}\n`;
 
     if (s.droppedby)
-      text += `\n🎁 Looteada por:\n${s.droppedby}\n`;
+      text += `\n🎁 *Looteada por:*\n${s.droppedby}\n`;
 
     text += `\n🔎 https://tibia.fandom.com/wiki/${title}`;
 
