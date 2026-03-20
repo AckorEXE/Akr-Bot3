@@ -17,56 +17,43 @@ function formatItemName(text) {
 // 🧠 Buscar múltiples keys
 function getMulti(raw, keys) {
   for (const key of keys) {
-    const regex = new RegExp(`\\|\\s*${key}\\s*=\\s*([^|]+)`, 'i');
+    const regex = new RegExp(`\\|\\s*${key}\\s*=\\s*([^\\n]+)`, 'i');
     const match = raw.match(regex);
     if (match) return match[1].trim();
   }
   return null;
 }
 
-// 🔥 limpiar templates tipo {{...}}
-function cleanTemplate(text) {
-  if (!text) return null;
-
-  return text
-    .replace(/\{\{|\}\}/g, '')
-    .replace(/\|/g, ', ')
-    .trim();
-}
-
-// 🎁 Dropped By
+// 🎁 FIX DROPPED BY (IMPORTANTE)
 function parseDroppedBy(raw) {
-  const data = getMulti(raw, ['droppedby']);
-  if (!data) return null;
+  const match = raw.match(/\|\s*droppedby\s*=\s*\{\{Dropped By\|([^}]+)\}\}/i);
 
-  const cleaned = data
-    .replace(/\{\{Dropped By\|/i, '')
-    .replace(/\}\}/g, '')
+  if (!match) return null;
+
+  return match[1]
     .split('|')
     .map(x => x.trim())
-    .filter(Boolean);
-
-  return cleaned.join(', ');
+    .filter(Boolean)
+    .join(', ');
 }
 
-// 🛒 NPC parser
+// 🛒 NPC parser mejorado
 function parseNPC(raw, key) {
   const data = getMulti(raw, [key]);
   if (!data) return null;
 
+  // caso template
   const matches = [...data.matchAll(/\{\{NPC Trade\|([^}]+)\}\}/g)];
 
-  if (!matches.length) return null;
+  if (matches.length) {
+    return matches.map(m => {
+      const parts = m[1].split('|');
+      return `${parts[0]} (${parts[1]}) - ${parts[2]} gp`;
+    }).join('\n');
+  }
 
-  return matches.map(m => {
-    const parts = m[1].split('|');
-
-    const name = parts[0] || '';
-    const city = parts[1] || '';
-    const price = parts[2] || '';
-
-    return `${name} (${city}) - ${price} gp`;
-  }).join('\n');
+  // fallback texto plano
+  return data.replace(/\{\{|\}\}/g, '').replace(/\|/g, ', ');
 }
 
 // 🧠 Parse completo
@@ -94,7 +81,6 @@ function parseStats(raw) {
     damagetype: getMulti(raw, ['damagetype']),
     damagerange: getMulti(raw, ['damagerange']),
 
-    // 🔥 NUEVOS EXACTOS
     attributes: getMulti(raw, ['attributes', 'attrib']),
     resist: getMulti(raw, ['resist', 'resists']),
 
@@ -102,6 +88,7 @@ function parseStats(raw) {
     critdamage: getMulti(raw, ['critdamage', 'critextra_dmg']),
 
     droppedby: parseDroppedBy(raw),
+
     buyfrom: parseNPC(raw, 'buyfrom'),
     sellto: parseNPC(raw, 'sellto'),
 
@@ -114,11 +101,9 @@ module.exports = async (msg) => {
   try {
     const args = msg.body.split(' ').slice(1);
 
-    if (args.length === 0) {
-      const errorMsg = await msg.reply('Uso correcto: *!item <nombre>*');
-      await errorMsg.react('❎');
-      await msg.react('❎');
-      return null;
+    if (!args.length) {
+      await msg.reply('Uso correcto: *!item <nombre>*');
+      return;
     }
 
     const rawQuery = args.join(' ');
@@ -128,28 +113,21 @@ module.exports = async (msg) => {
     const searchRes = await axios.get(searchUrl);
 
     const results = searchRes.data?.query?.search || [];
-
-    if (!results.length) {
-      await msg.reply('❌ No se encontró ese item.');
-      return null;
-    }
+    if (!results.length) return msg.reply('❌ No encontrado.');
 
     const selected = results[0];
-    const correctTitle = selected.title.replace(/ /g, '_');
+    const title = selected.title.replace(/ /g, '_');
 
-    console.log('✅ Usando:', correctTitle);
+    console.log('✅ Usando:', title);
 
     // 🔥 raw
-    const rawUrl = `https://tibia.fandom.com/api.php?action=query&prop=revisions&titles=${correctTitle}&rvprop=content&format=json`;
+    const rawUrl = `https://tibia.fandom.com/api.php?action=query&prop=revisions&titles=${title}&rvprop=content&format=json`;
     const rawRes = await axios.get(rawUrl);
 
     const page = Object.values(rawRes.data.query.pages)[0];
     const content = page?.revisions?.[0]?.['*'];
 
-    if (!content) {
-      await msg.reply('❌ No se pudo obtener info.');
-      return null;
-    }
+    if (!content) return msg.reply('❌ Sin info.');
 
     const s = parseStats(content);
 
@@ -184,24 +162,29 @@ module.exports = async (msg) => {
 
     if (s.weight) text += `⚖️ Peso: ${s.weight}\n`;
 
-    if (s.npcprice) text += `🛒 Compra NPC: ${s.npcprice} gp\n`;
-    if (s.npcvalue) text += `💰 Venta NPC: ${s.npcvalue} gp\n`;
+    // ✅ SOLO SI > 0
+    if (s.npcprice && parseInt(s.npcprice) > 0)
+      text += `🛒 Compra NPC: ${s.npcprice} gp\n`;
 
-    if (s.buyfrom) text += `\n🛍️ Buy From:\n${s.buyfrom}\n`;
-    if (s.sellto) text += `\n💸 Sell To:\n${s.sellto}\n`;
+    if (s.npcvalue && parseInt(s.npcvalue) > 0)
+      text += `💰 Venta NPC: ${s.npcvalue} gp\n`;
 
-    if (s.droppedby) text += `\n🎁 Dropped By:\n${s.droppedby}\n`;
+    if (s.buyfrom) text += `\n🛍️ Compra en:\n${s.buyfrom}\n`;
+    if (s.sellto) text += `\n💸 Vende a:\n${s.sellto}\n`;
 
-    text += `\n🔎 https://tibia.fandom.com/wiki/${correctTitle}`;
+    // 🔥 FIX DROPS + TEXTO NUEVO
+    if (s.droppedby)
+      text += `\n🎁 Looteada por:\n${s.droppedby}\n`;
 
-    const sentMessage = await msg.reply(text);
-    await sentMessage.react('📚');
+    text += `\n🔎 https://tibia.fandom.com/wiki/${title}`;
 
-    return sentMessage;
+    const sent = await msg.reply(text);
+    await sent.react('📚');
+
+    return sent;
 
   } catch (err) {
     console.log('❌ ERROR:', err.message);
-    await msg.reply('❌ Error al obtener el item.');
-    return null;
+    return msg.reply('❌ Error.');
   }
 };
