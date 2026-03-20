@@ -79,7 +79,6 @@ function parseStats(raw) {
     imbueslots: getMulti(raw, ['imbueslots']),
     upgradeclass: getMulti(raw, ['upgradeclass']),
     range: getMulti(raw, ['range']),
-    lifeleech: getMulti(raw, ['lifeleech']),
     manacost: getMulti(raw, ['manacost']),
 
     damagetype: getMulti(raw, ['damagetype']),
@@ -90,6 +89,10 @@ function parseStats(raw) {
 
     critchance: getMulti(raw, ['critchance', 'crithit_ch']),
     critdamage: getMulti(raw, ['critdamage', 'critextra_dmg']),
+
+    // 🔥 NUEVO LIFE LEECH CORRECTO
+    hpleech_ch: getMulti(raw, ['hpleech_ch']),
+    hpleech_am: getMulti(raw, ['hpleech_am']),
 
     droppedby: parseDroppedBy(raw),
 
@@ -138,7 +141,6 @@ module.exports = async (msg) => {
     if (s.level) text += `🎯 Nivel: ${s.level}\n`;
     if (s.vocation) text += `🧙 Vocación: ${s.vocation}\n`;
 
-
     if (s.attack) text += `⚔️ Ataque: ${s.attack}\n`;
     if (s.damagerange)
       text += `💥 Daño: ${s.damagerange} (${s.damagetype || ''})\n`;
@@ -146,16 +148,22 @@ module.exports = async (msg) => {
 
     if (s.critchance)
       text += `🎯 Probabilidad crítica extra: ${s.critchance}\n`;
+
     if (s.critdamage)
       text += `💥 Daño crítico extra: ${s.critdamage}\n`;
+
+    // 🔥 NUEVO BLOQUE LIFE LEECH
+    if (s.hpleech_ch)
+      text += `🎯 Probabilidad robo de vida: ${s.hpleech_ch}\n`;
+
+    if (s.hpleech_am)
+      text += `🩸 Robo de vida: ${s.hpleech_am}\n`;
 
     if (s.defense || s.armor) {
       text += `🛡️ Defensa: ${s.defense || s.armor}`;
       if (s.defensemod) text += ` (${s.defensemod})`;
       text += `\n`;
     }
-
-    if (s.lifeleech) text += `🩸 Robo de vida: ${s.lifeleech}\n`;
 
     if (s.manacost) text += `🔮 Mana: ${s.manacost}\n`;
 
@@ -164,10 +172,9 @@ module.exports = async (msg) => {
 
     if (s.attributes) text += `✨ Atributos: ${s.attributes}\n`;
     if (s.resist) text += `🛡️ Resistencias: ${s.resist}\n`;
-    
+
     if (s.weight) text += `⚖️ Peso: ${s.weight}\n`;
 
-    // ✅ solo si > 0
     if (s.npcprice && parseInt(s.npcprice) > 0)
       text += `🛒 Compra NPC: ${s.npcprice} gp\n`;
 
