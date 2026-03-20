@@ -160,8 +160,8 @@ module.exports = async (msg) => {
     if (s.level) text += `🎯 Nivel: ${s.level}\n`;
     if (s.vocation) text += `🧙 Vocación: ${s.vocation}\n`;
 
-if (s.imbueslots) text += `💠 Imbuing Slots: ${s.imbueslots}\n`;
-    if (s.upgradeclass) text += `⬆️ Upgrade Class: ${s.upgradeclass}\n`;
+    if (s.imbueslots) text += `💠 Imbuición máxima: ${s.imbueslots}\n`;
+    if (s.upgradeclass) text += `⬆️ Clasificación: ${s.upgradeclass}\n`;
 
     if (s.attack) text += `⚔️ Ataque: ${s.attack}\n`;
     if (s.damagerange)
@@ -185,12 +185,11 @@ if (s.imbueslots) text += `💠 Imbuing Slots: ${s.imbueslots}\n`;
     }
 
     if (s.manacost) text += `🔮 Mana: ${s.manacost}\n`;
+    if (s.mantra) text += `🌀 Mantra: ${s.mantra}\n`;
 
     if (s.attributes) text += `✨ Atributos: ${s.attributes}\n`;
     if (s.resist) text += `🛡️ Resistencias: ${s.resist}\n`;
-
-    if (s.augments) text += `🧩 Augments: ${s.augments}\n`;
-    if (s.mantra) text += `🌀 Mantra: ${s.mantra}\n`;
+    if (s.augments) text += `🧩 Aumentos: ${s.augments}\n`;
 
     if (s.weight) text += `⚖️ Peso: ${s.weight} oz\n`;
 
