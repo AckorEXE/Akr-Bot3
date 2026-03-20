@@ -13,30 +13,33 @@ module.exports = async (msg) => {
       return null;
     }
 
-    const itemName = args.join('_');
+    const query = args.join(' ');
 
-    const url = `https://tibia.fandom.com/api.php?action=query&prop=extracts&titles=${encodeURIComponent(itemName)}&format=json&exintro=1&explaintext=1`;
+    // 🔍 1. Buscar nombre correcto
+    const searchUrl = `https://tibia.fandom.com/api.php?action=query&list=search&srsearch=${encodeURIComponent(query)}&format=json`;
 
-    let response;
-    try {
-      response = await axios.get(url);
-    } catch (err) {
-      console.log('ERROR API:', err.message);
+    const searchRes = await axios.get(searchUrl);
+    const results = searchRes.data.query.search;
 
-      const errorMsg = await msg.reply(
-        'No se pudo obtener información del item.'
-      );
+    if (!results || results.length === 0) {
+      const errorMsg = await msg.reply('No se encontró ese item.');
       await errorMsg.react('❎');
       await msg.react('❎');
       return null;
     }
 
-    const pages = response.data.query.pages;
+    const correctTitle = results[0].title.replace(/ /g, '_');
+
+    // 📦 2. Obtener descripción
+    const infoUrl = `https://tibia.fandom.com/api.php?action=query&prop=extracts&titles=${encodeURIComponent(correctTitle)}&format=json&exintro=1&explaintext=1`;
+
+    const infoRes = await axios.get(infoUrl);
+    const pages = infoRes.data.query.pages;
     const page = Object.values(pages)[0];
 
-    if (!page || page.missing || !page.extract) {
+    if (!page || !page.extract) {
       const errorMsg = await msg.reply(
-        'No se encontró información para ese item.'
+        'No se pudo obtener información del item.'
       );
       await errorMsg.react('❎');
       await msg.react('❎');
@@ -47,14 +50,13 @@ module.exports = async (msg) => {
       .replace(/\s+/g, ' ')
       .trim();
 
-    // limitar tamaño (whatsapp)
     if (description.length > 700) {
       description = description.slice(0, 700) + '...';
     }
 
-    const wikiUrl = `https://tibia.fandom.com/wiki/${itemName}`;
+    const wikiUrl = `https://tibia.fandom.com/wiki/${correctTitle}`;
 
-    let text = `📦 *${args.join(' ')}*\n\n`;
+    let text = `📦 *${results[0].title}*\n\n`;
     text += `ℹ️ ${description}\n\n`;
     text += `🔎 ${wikiUrl}`;
 
