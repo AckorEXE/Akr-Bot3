@@ -156,26 +156,25 @@ module.exports = async (msg) => {
     const s = parseStats(content);
 
     let text = `📦 *${s.name || results[0].title}*\n\n`;
-
     if (s.itemid) text += `🆔 ID: ${s.itemid}\n`;
-
     if (s.level) text += `🎯 Nivel: ${s.level}\n`;
     if (s.vocation) text += `🧙 Vocación: ${s.vocation}\n`;
+
+if (s.imbueslots) text += `💠 Imbuing Slots: ${s.imbueslots}\n`;
+    if (s.upgradeclass) text += `⬆️ Upgrade Class: ${s.upgradeclass}\n`;
 
     if (s.attack) text += `⚔️ Ataque: ${s.attack}\n`;
     if (s.damagerange)
       text += `💥 Daño: ${s.damagerange} (${s.damagetype || ''})\n`;
     if (s.range) text += `🏹 Rango: ${s.range}\n`;
-
     if (s.critchance)
-      text += `🎯 Probabilidad crítica extra: ${s.critchance}\n`;
 
+      text += `🎯 Probabilidad crítica extra: ${s.critchance}\n`;
     if (s.critdamage)
       text += `💥 Daño crítico extra: ${s.critdamage}\n`;
 
     if (s.hpleech_ch)
       text += `🎯 Probabilidad robo de vida: ${s.hpleech_ch}\n`;
-
     if (s.hpleech_am)
       text += `🩸 Robo de vida: ${s.hpleech_am}\n`;
 
@@ -187,17 +186,13 @@ module.exports = async (msg) => {
 
     if (s.manacost) text += `🔮 Mana: ${s.manacost}\n`;
 
-    if (s.imbueslots) text += `💠 Imbuing Slots: ${s.imbueslots}\n`;
-    if (s.upgradeclass) text += `⬆️ Upgrade Class: ${s.upgradeclass}\n`;
-
     if (s.attributes) text += `✨ Atributos: ${s.attributes}\n`;
     if (s.resist) text += `🛡️ Resistencias: ${s.resist}\n`;
 
-    // 🔥 NUEVOS
     if (s.augments) text += `🧩 Augments: ${s.augments}\n`;
     if (s.mantra) text += `🌀 Mantra: ${s.mantra}\n`;
 
-    if (s.weight) text += `⚖️ Peso: ${s.weight}\n`;
+    if (s.weight) text += `⚖️ Peso: ${s.weight} oz\n`;
 
     if (s.npcprice && parseInt(s.npcprice) > 0)
       text += `🛒 Compra NPC: ${s.npcprice} gp\n`;
