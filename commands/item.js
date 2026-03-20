@@ -14,7 +14,7 @@ function formatItemName(text) {
     .join('_');
 }
 
-// 🧠 Obtener múltiples posibles nombres
+// 🧠 Buscar múltiples keys
 function getMulti(raw, keys) {
   for (const key of keys) {
     const regex = new RegExp(`\\|\\s*${key}\\s*=\\s*([^|]+)`, 'i');
@@ -24,16 +24,65 @@ function getMulti(raw, keys) {
   return null;
 }
 
-// 🧠 Extraer stats completos
+// 🔥 limpiar templates tipo {{...}}
+function cleanTemplate(text) {
+  if (!text) return null;
+
+  return text
+    .replace(/\{\{|\}\}/g, '')
+    .replace(/\|/g, ', ')
+    .trim();
+}
+
+// 🎁 Dropped By
+function parseDroppedBy(raw) {
+  const data = getMulti(raw, ['droppedby']);
+  if (!data) return null;
+
+  const cleaned = data
+    .replace(/\{\{Dropped By\|/i, '')
+    .replace(/\}\}/g, '')
+    .split('|')
+    .map(x => x.trim())
+    .filter(Boolean);
+
+  return cleaned.join(', ');
+}
+
+// 🛒 NPC parser
+function parseNPC(raw, key) {
+  const data = getMulti(raw, [key]);
+  if (!data) return null;
+
+  const matches = [...data.matchAll(/\{\{NPC Trade\|([^}]+)\}\}/g)];
+
+  if (!matches.length) return null;
+
+  return matches.map(m => {
+    const parts = m[1].split('|');
+
+    const name = parts[0] || '';
+    const city = parts[1] || '';
+    const price = parts[2] || '';
+
+    return `${name} (${city}) - ${price} gp`;
+  }).join('\n');
+}
+
+// 🧠 Parse completo
 function parseStats(raw) {
   return {
     name: getMulti(raw, ['name']),
+    itemid: getMulti(raw, ['itemid']),
+
     attack: getMulti(raw, ['attack']),
     defense: getMulti(raw, ['defense']),
     defensemod: getMulti(raw, ['defensemod']),
     armor: getMulti(raw, ['armor']),
+
     level: getMulti(raw, ['levelrequired']),
     vocation: getMulti(raw, ['vocrequired']),
+
     weight: getMulti(raw, ['weight']),
     value: getMulti(raw, ['value']),
 
@@ -45,22 +94,19 @@ function parseStats(raw) {
     damagetype: getMulti(raw, ['damagetype']),
     damagerange: getMulti(raw, ['damagerange']),
 
-    // 🔥 IMPORTANTES
-    attributes: getMulti(raw, ['attributes', 'attribute']),
+    // 🔥 NUEVOS EXACTOS
+    attributes: getMulti(raw, ['attributes', 'attrib']),
     resist: getMulti(raw, ['resist', 'resists']),
 
-    // 🔥 CRITICOS
-    critchance: getMulti(raw, [
-      'extracriticalchance',
-      'criticalchance',
-      'critchance'
-    ]),
+    critchance: getMulti(raw, ['critchance', 'crithit_ch']),
+    critdamage: getMulti(raw, ['critdamage', 'critextra_dmg']),
 
-    critdamage: getMulti(raw, [
-      'extracriticaldamage',
-      'criticaldamage',
-      'critdamage'
-    ])
+    droppedby: parseDroppedBy(raw),
+    buyfrom: parseNPC(raw, 'buyfrom'),
+    sellto: parseNPC(raw, 'sellto'),
+
+    npcprice: getMulti(raw, ['npcprice']),
+    npcvalue: getMulti(raw, ['npcvalue'])
   };
 }
 
@@ -83,93 +129,68 @@ module.exports = async (msg) => {
 
     const results = searchRes.data?.query?.search || [];
 
-    if (results.length === 0) {
-      const errorMsg = await msg.reply('❌ No se encontró ese item.');
-      await errorMsg.react('❎');
-      await msg.react('❎');
+    if (!results.length) {
+      await msg.reply('❌ No se encontró ese item.');
       return null;
     }
 
-    const blacklist = ['quest', 'spoiler'];
-
-    const valid = results.find(r => {
-      const title = r.title.toLowerCase();
-      return !blacklist.some(b => title.includes(b));
-    });
-
-    const selected = valid || results[0];
+    const selected = results[0];
     const correctTitle = selected.title.replace(/ /g, '_');
 
     console.log('✅ Usando:', correctTitle);
 
-    // 🔥 obtener raw
+    // 🔥 raw
     const rawUrl = `https://tibia.fandom.com/api.php?action=query&prop=revisions&titles=${correctTitle}&rvprop=content&format=json`;
     const rawRes = await axios.get(rawUrl);
 
-    const rawPages = rawRes.data.query.pages;
-    const rawPage = Object.values(rawPages)[0];
-
-    let content = rawPage?.revisions?.[0]?.['*'] || '';
+    const page = Object.values(rawRes.data.query.pages)[0];
+    const content = page?.revisions?.[0]?.['*'];
 
     if (!content) {
-      const errorMsg = await msg.reply('❌ No se pudo obtener info.');
-      await errorMsg.react('❎');
-      await msg.react('❎');
+      await msg.reply('❌ No se pudo obtener info.');
       return null;
     }
 
-    const stats = parseStats(content);
+    const s = parseStats(content);
 
-    // 🧾 RESPUESTA
-    let text = `📦 *${stats.name || selected.title}*\n\n`;
+    let text = `📦 *${s.name || selected.title}*\n\n`;
 
-    if (stats.attack) text += `⚔️ Ataque: ${stats.attack}\n`;
+    if (s.itemid) text += `🆔 ID: ${s.itemid}\n`;
 
-    if (stats.defense || stats.armor) {
-      text += `🛡️ Defensa: ${stats.defense || stats.armor}`;
-      if (stats.defensemod) text += ` (${stats.defensemod})`;
+    if (s.attack) text += `⚔️ Ataque: ${s.attack}\n`;
+
+    if (s.defense || s.armor) {
+      text += `🛡️ Defensa: ${s.defense || s.armor}`;
+      if (s.defensemod) text += ` (${s.defensemod})`;
       text += `\n`;
     }
 
-    if (stats.level) text += `🎯 Nivel: ${stats.level}\n`;
-    if (stats.vocation) text += `🧙 Vocación: ${stats.vocation}\n`;
+    if (s.level) text += `🎯 Nivel: ${s.level}\n`;
+    if (s.vocation) text += `🧙 Vocación: ${s.vocation}\n`;
 
-    if (stats.damagerange)
-      text += `💥 Daño: ${stats.damagerange} (${stats.damagetype || ''})\n`;
+    if (s.damagerange)
+      text += `💥 Daño: ${s.damagerange} (${s.damagetype || ''})\n`;
 
-    if (stats.range)
-      text += `🏹 Rango: ${stats.range}\n`;
+    if (s.range) text += `🏹 Rango: ${s.range}\n`;
 
-    if (stats.lifeleech)
-      text += `🩸 Life Leech: ${stats.lifeleech}\n`;
+    if (s.imbueslots) text += `💠 Imbuing Slots: ${s.imbueslots}\n`;
+    if (s.upgradeclass) text += `⬆️ Upgrade Class: ${s.upgradeclass}\n`;
 
-    if (stats.manacost)
-      text += `🔮 Mana: ${stats.manacost}\n`;
+    if (s.attributes) text += `✨ Atributos: ${s.attributes}\n`;
+    if (s.resist) text += `🛡️ Resistencias: ${s.resist}\n`;
 
-    if (stats.imbueslots)
-      text += `💠 Imbuing Slots: ${stats.imbueslots}\n`;
+    if (s.critchance) text += `🎯 Crit Chance: ${s.critchance}\n`;
+    if (s.critdamage) text += `💥 Crit Damage: ${s.critdamage}\n`;
 
-    if (stats.upgradeclass)
-      text += `⬆️ Upgrade Class: ${stats.upgradeclass}\n`;
+    if (s.weight) text += `⚖️ Peso: ${s.weight}\n`;
 
-    // 🔥 AQUÍ ESTABA EL PROBLEMA (YA FIX)
-    if (stats.attributes)
-      text += `✨ Atributos: ${stats.attributes}\n`;
+    if (s.npcprice) text += `🛒 Compra NPC: ${s.npcprice} gp\n`;
+    if (s.npcvalue) text += `💰 Venta NPC: ${s.npcvalue} gp\n`;
 
-    if (stats.resist)
-      text += `🛡️ Resistencias: ${stats.resist}\n`;
+    if (s.buyfrom) text += `\n🛍️ Buy From:\n${s.buyfrom}\n`;
+    if (s.sellto) text += `\n💸 Sell To:\n${s.sellto}\n`;
 
-    if (stats.critchance)
-      text += `🎯 Crit Chance: ${stats.critchance}\n`;
-
-    if (stats.critdamage)
-      text += `💥 Crit Damage: ${stats.critdamage}\n`;
-
-    if (stats.weight)
-      text += `⚖️ Peso: ${stats.weight}\n`;
-
-    if (stats.value)
-      text += `💰 Valor: ${stats.value}\n`;
+    if (s.droppedby) text += `\n🎁 Dropped By:\n${s.droppedby}\n`;
 
     text += `\n🔎 https://tibia.fandom.com/wiki/${correctTitle}`;
 
@@ -180,12 +201,7 @@ module.exports = async (msg) => {
 
   } catch (err) {
     console.log('❌ ERROR:', err.message);
-
-    try {
-      await msg.reply('❌ Error al obtener el item.');
-      await msg.react('❎');
-    } catch {}
-
+    await msg.reply('❌ Error al obtener el item.');
     return null;
   }
 };
