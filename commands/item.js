@@ -139,23 +139,55 @@ module.exports = async (msg) => {
     const results = searchRes.data?.query?.search || [];
     if (!results.length) return msg.reply('❌ No encontrado.');
 
-    const title = results[0].title.replace(/ /g, '_');
+    const blacklist = ['quest', 'outfit', 'mount', 'achievement', 'npc', 'creature'];
 
-    console.log('✅ Usando:', title);
+    let title = null;
+    let content = null;
 
-    // 🔥 raw
-    const rawRes = await axios.get(
-      `https://tibia.fandom.com/api.php?action=query&prop=revisions&titles=${title}&rvprop=content&format=json`
-    );
+    // 🧠 buscar el primer resultado válido
+    for (const r of results) {
+      const tempTitle = r.title;
+      const lower = tempTitle.toLowerCase();
 
-    const page = Object.values(rawRes.data.query.pages)[0];
-    const content = page?.revisions?.[0]?.['*'];
+      // ❌ ignorar basura
+      if (blacklist.some(word => lower.includes(word))) continue;
 
-    if (!content) return msg.reply('❌ Sin info.');
+      const tempFormatted = tempTitle.replace(/ /g, '_');
+
+      try {
+        const rawRes = await axios.get(
+          `https://tibia.fandom.com/api.php?action=query&prop=revisions&titles=${tempFormatted}&rvprop=content&format=json`
+        );
+
+        const page = Object.values(rawRes.data.query.pages)[0];
+        const raw = page?.revisions?.[0]?.['*'];
+
+        if (!raw) continue;
+
+        // 🧠 VALIDACIÓN REAL → debe ser item
+        if (!raw.toLowerCase().includes('infobox item')) continue;
+
+        // ✅ encontrado bueno
+        title = tempFormatted;
+        content = raw;
+
+        console.log('✅ Usando:', title);
+        break;
+
+      } catch {
+        continue;
+      }
+    }
+
+    // ❌ si no encontró nada válido
+    if (!title || !content) {
+      return msg.reply('❌ No se encontró un ítem válido.');
+    }
 
     const s = parseStats(content);
 
-    let text = `📦 *${s.name || results[0].title}*\n\n`;
+    let text = `📦 *${s.name || title.replace(/_/g, ' ')}*\n\n`;
+
     if (s.itemid) text += `🆔 *ID:* ${s.itemid}\n`;
     if (s.level) text += `🎯 *Nivel:* ${s.level}\n`;
     if (s.vocation) text += `🧙 *Vocación:* ${s.vocation}\n`;
@@ -167,8 +199,8 @@ module.exports = async (msg) => {
     if (s.damagerange)
       text += `💥 *Daño:* ${s.damagerange} (${s.damagetype || ''})\n`;
     if (s.range) text += `🏹 Rango: ${s.range}\n`;
-    if (s.critchance)
 
+    if (s.critchance)
       text += `🎯 *Probabilidad crítica extra:* ${s.critchance}\n`;
     if (s.critdamage)
       text += `💥 *Daño crítico extra:* ${s.critdamage}\n`;
