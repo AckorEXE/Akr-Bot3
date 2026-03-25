@@ -199,8 +199,8 @@ module.exports = async (msg) => {
     if (s.npcvalue && parseInt(s.npcvalue) > 0)
       text += `💰 *Vender en:* ${s.npcvalue} gp\n`;
 
-    if (s.buyfrom) text += `\n🛍️ *Compra con:*\n${s.buyfrom}\n`;
-    if (s.sellto) text += `\n💸 *Vende a:*\n${s.sellto}\n`;
+    if (s.buyfrom) text += `\n🛍️ *Comprar con:*\n${s.buyfrom}\n`;
+    if (s.sellto) text += `\n💸 *Vender con:*\n${s.sellto}\n`;
 
     if (s.droppedby)
       text += `\n🎁 *Looteada por:*\n${s.droppedby}\n`;
