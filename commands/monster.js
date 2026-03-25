@@ -53,8 +53,8 @@ module.exports = async (msg) => {
         let text =
 `👾 *${name}*
 
-❤️ *Health:* ${hitpoints}
-⭐ *Experience:* ${experience}
+❤️ *Vida:* ${hitpoints}
+⭐ *Experiencia:* ${experience}
 
 *Daño recibido de los elementos:*
 ${damageText}`;
