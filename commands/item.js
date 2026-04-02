@@ -116,6 +116,7 @@ module.exports = async (msg) => {
     if (!args.length) return msg.reply('Uso correcto: *!item <nombre>*');
 
     const query = args.join(' ');
+    const normalizedQuery = query.toLowerCase().trim();
 
     // 🔎 buscar
     const searchRes = await axios.get(
@@ -130,35 +131,61 @@ module.exports = async (msg) => {
     let title = null;
     let content = null;
 
-    // 🧠 recorrer resultados
+    // 🔥 1. INTENTAR MATCH EXACTO
     for (const r of results) {
-      const lower = r.title.toLowerCase();
+      const cleanTitle = r.title.toLowerCase().trim();
 
-      if (blacklist.some(w => lower.includes(w))) continue;
+      if (cleanTitle === normalizedQuery) {
+        const formatted = r.title.replace(/ /g, '_');
 
-      const formatted = r.title.replace(/ /g, '_');
+        try {
+          const rawRes = await axios.get(
+            `https://tibia.fandom.com/api.php?action=query&prop=revisions&titles=${formatted}&rvprop=content&format=json`
+          );
 
-      try {
-        const rawRes = await axios.get(
-          `https://tibia.fandom.com/api.php?action=query&prop=revisions&titles=${formatted}&rvprop=content&format=json`
-        );
+          const page = Object.values(rawRes.data.query.pages)[0];
+          const raw = page?.revisions?.[0]?.['*'];
 
-        const page = Object.values(rawRes.data.query.pages)[0];
-        const raw = page?.revisions?.[0]?.['*'];
+          if (raw && isValidItem(raw)) {
+            title = formatted;
+            content = raw;
+            console.log('🎯 Exact match:', title);
+            break;
+          }
 
-        if (!raw) continue;
+        } catch {}
+      }
+    }
 
-        // ✅ VALIDACIÓN CORRECTA
-        if (!isValidItem(raw)) continue;
+    // 🔁 2. FALLBACK NORMAL
+    if (!title) {
+      for (const r of results) {
+        const lower = r.title.toLowerCase();
 
-        title = formatted;
-        content = raw;
+        if (blacklist.some(w => lower.includes(w))) continue;
 
-        console.log('✅ Usando:', title);
-        break;
+        const formatted = r.title.replace(/ /g, '_');
 
-      } catch {
-        continue;
+        try {
+          const rawRes = await axios.get(
+            `https://tibia.fandom.com/api.php?action=query&prop=revisions&titles=${formatted}&rvprop=content&format=json`
+          );
+
+          const page = Object.values(rawRes.data.query.pages)[0];
+          const raw = page?.revisions?.[0]?.['*'];
+
+          if (!raw) continue;
+          if (!isValidItem(raw)) continue;
+
+          title = formatted;
+          content = raw;
+
+          console.log('✅ Usando fallback:', title);
+          break;
+
+        } catch {
+          continue;
+        }
       }
     }
 
@@ -168,7 +195,7 @@ module.exports = async (msg) => {
 
     const s = parseStats(content);
 
-    let text = `📦 *${s.name || results[0].title}*\n\n`;
+    let text = `📦 *${s.name || query}*\n\n`;
     if (s.itemid) text += `🆔 *ID:* ${s.itemid}\n`;
     if (s.level) text += `🎯 *Nivel:* ${s.level}\n`;
     if (s.vocation) text += `🧙 *Vocación:* ${s.vocation}\n`;
@@ -180,8 +207,8 @@ module.exports = async (msg) => {
     if (s.damagerange)
       text += `💥 *Daño:* ${s.damagerange} (${s.damagetype || ''})\n`;
     if (s.range) text += `🏹 *Rango:* ${s.range}\n`;
-    if (s.critchance)
 
+    if (s.critchance)
       text += `🎯 *Probabilidad crítica extra:* ${s.critchance}\n`;
     if (s.critdamage)
       text += `💥 *Daño crítico extra:* ${s.critdamage}\n`;
@@ -220,9 +247,7 @@ module.exports = async (msg) => {
 
     text += `\n🔎 https://tibia.fandom.com/wiki/${title}`;
 
-    const sent = await msg.reply(text);
-
-    return sent;
+    return msg.reply(text);
 
   } catch (err) {
     console.log('❌ ERROR:', err.message);
