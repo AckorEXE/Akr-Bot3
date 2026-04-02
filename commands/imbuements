@@ -139,9 +139,9 @@ module.exports = async (msg) => {
     const [m1, m2, m3] = imb.materials;
 
     let text = `*${imb.name}*\n\n`;
-    text += `*Basic:* ${m1}\n`;
-    text += `*Intricate:* ${m1}, ${m2}\n`;
-    text += `*Powerful:* ${m1}, ${m2}, ${m3}`;
+    text += `1️⃣ *Basic:* ${m1}\n`;
+    text += `2️⃣ *Intricate:* ${m1}, ${m2}\n`;
+    text += `3️⃣ *Powerful:* ${m1}, ${m2}, ${m3}`;
 
     // éxito → solo responde (index maneja reacciones)
     return await msg.reply(text);
