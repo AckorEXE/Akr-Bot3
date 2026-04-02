@@ -21,6 +21,7 @@ const commandEmojis = {
     monster: '👾',
     shared: '🧠',
     rashid: '🧞',
+    imbuement: '🔥',
 
     // menú
     menu: '💛',
@@ -44,6 +45,7 @@ const cooldownCommands = {
     item: 5,
     monster: 5,
     rashid: 5,
+    imbuement: 5,
     shared: 5
 };
 
@@ -142,6 +144,7 @@ const sticker = require('./commands/sticker');
 const elfbot = require('./commands/elfbot');
 const client860 = require('./commands/client860');
 const helper = require('./commands/helper');
+const imbuement = require('./commands/imbuements');
 
 const commands = {
     menu,
@@ -154,6 +157,7 @@ const commands = {
     item,
     monster,
     rashid,
+    imbuement,
 
     sticker,
     s: sticker,
