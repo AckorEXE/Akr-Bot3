@@ -97,13 +97,13 @@ const imbuements = {
   }
 };
 
-module.exports = async (msg, safeReact) => {
+module.exports = async (msg) => {
   try {
     const args = msg.body.split(' ').slice(1);
 
     // ❌ sin argumentos
     if (!args.length) {
-      await safeReact(msg, '❎');
+      try { await msg.react('❎'); } catch {}
       return msg.reply(
         'Para usar el comando utiliza:\n*!imbuement list* o *!imbuement <nombre>*'
       );
@@ -124,7 +124,7 @@ module.exports = async (msg, safeReact) => {
 
     // ❌ no encontrado
     if (!imb) {
-      await safeReact(msg, '❎');
+      try { await msg.react('❎'); } catch {}
       return msg.reply('Imbuement no encontrado.');
     }
 
@@ -139,7 +139,7 @@ module.exports = async (msg, safeReact) => {
 
   } catch (err) {
     console.log('❌ ERROR:', err.message);
-    await safeReact(msg, '❎');
+    try { await msg.react('❎'); } catch {}
     return msg.reply('Error.');
   }
 };
