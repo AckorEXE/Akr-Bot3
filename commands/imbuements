@@ -1,6 +1,6 @@
 const imbuements = {
   "scorch": {
-    name: "Scorch (Fire Damage)",
+    name: "🔥 Scorch (Fire Damage)",
     materials: ["25 Fiery Heart", "5 Green Dragon Scale", "5 Demon Horn"]
   },
   "venom": {
@@ -8,91 +8,91 @@ const imbuements = {
     materials: ["25 Swamp Grass", "20 Poisonous Slime", "2 Slime Heart"]
   },
   "frost": {
-    name: "Frost (Ice Damage)",
+    name: "❄️ Frost (Ice Damage)",
     materials: ["25 Frosty Heart", "10 Seacrest Hair", "5 Polar Bear Paw"]
   },
   "electrify": {
-    name: "Electrify (Energy Damage)",
+    name: "⚡ Electrify (Energy Damage)",
     materials: ["25 Rorc Feather", "5 Peacock Feather Fan", "1 Energy Vein"]
   },
   "reap": {
-    name: "Reap (Death Damage)",
+    name: "💀 Reap (Death Damage)",
     materials: ["25 Pile of Grave Earth", "20 Demonic Skeletal Hand", "5 Petrified Scream"]
   },
   "vampirism": {
-    name: "Vampirism (Life Leech)",
+    name: "🩸 Vampirism (Life Leech)",
     materials: ["25 Vampire Teeth", "15 Bloody Pincers", "5 Piece of Dead Brain"]
   },
   "void": {
-    name: "Void (Mana Leech)",
+    name: "🔮 Void (Mana Leech)",
     materials: ["25 Rope Belt", "25 Silencer Claw", "5 Grimeleech Wings"]
   },
   "strike": {
-    name: "Strike (Critical Hit)",
+    name: "🎯 Strike (Critical Hit)",
     materials: ["20 Protective Charm", "25 Sabretooth", "5 Vexclaw Talon"]
   },
   "lich shroud": {
-    name: "Lich Shroud (Death Protection)",
+    name: "💀 Lich Shroud (Death Protection)",
     materials: ["25 Flask of Embalming Fluid", "20 Gloom Wolf Fur", "5 Mystical Hourglass"]
   },
   "snake skin": {
-    name: "Snake Skin (Earth Protection)",
+    name: "🌱 Snake Skin (Earth Protection)",
     materials: ["25 Swampling Wood", "20 Snake Skin", "10 Brimstone Fangs"]
   },
   "dragon hide": {
-    name: "Dragon Hide (Fire Protection)",
+    name: "🔥 Dragon Hide (Fire Protection)",
     materials: ["20 Green Dragon Leather", "10 Blazing Bone", "5 Draken Sulphur"]
   },
   "quara scale": {
-    name: "Quara Scale (Ice Protection)",
+    name: "❄️ Quara Scale (Ice Protection)",
     materials: ["25 Winter Wolf Fur", "10 Thick Fur", "10 Deepling Wart"]
   },
   "cloud fabric": {
-    name: "Cloud Fabric (Energy Protection)",
+    name: "⚡Cloud Fabric (Energy Protection)",
     materials: ["20 Wyvern Talisman", "15 Crawler Head Plating", "10 Wyrm Scale"]
   },
   "demon presence": {
-    name: "Demon Presence (Holy Protection)",
+    name: "✝️ Demon Presence (Holy Protection)",
     materials: ["25 Cultish Robe", "25 Cultish Mask", "20 Hellspawn Tail"]
   },
   "vibrancy": {
-    name: "Vibrancy (Paralysis Deflection)",
+    name: "🪞 Vibrancy (Paralysis Deflection)",
     materials: ["20 Wereboar Hooves", "15 Crystallized Anger", "5 Quill"]
   },
   "swiftness": {
-    name: "Swiftness (Walking Speed)",
+    name: "🪶 Swiftness (Walking Speed)",
     materials: ["15 Damselfly Wing", "25 Compass", "20 Waspoid Wing"]
   },
   "featherweight": {
-    name: "Featherweight (Capacity)",
+    name: "🎒 Featherweight (Capacity)",
     materials: ["20 Fairy Wings", "10 Little Bowl of Myrrh", "5 Goosebump Leather"]
   },
   "epiphany": {
-    name: "Epiphany (Magic Level)",
+    name: "✨ Epiphany (Magic Level)",
     materials: ["25 Elvish Talisman", "15 Broken Shamanic Staff", "15 Strand of Medusa Hair"]
   },
   "punch": {
-    name: "Punch (Fist Fighting)",
+    name: "👊 Punch (Fist Fighting)",
     materials: ["25 Tarantula Egg", "20 Mantassin Tail", "15 Gold-Brocaded Cloth"]
   },
   "bash": {
-    name: "Bash (Club Fighting)",
+    name: "🔨 Bash (Club Fighting)",
     materials: ["20 Cyclops Toe", "15 Ogre Nose Ring", "10 Warmaster’s Wristguards"]
   },
   "slash": {
-    name: "Slash (Sword Fighting)",
+    name: "🗡️ Slash (Sword Fighting)",
     materials: ["25 Lion’s Mane", "25 Mooh’tah Shell", "5 War Crystal"]
   },
   "chop": {
-    name: "Chop (Axe Fighting)",
+    name: "🪓 Chop (Axe Fighting)",
     materials: ["20 Orc Tooth", "25 Battle Stone", "20 Moohtant Horn"]
   },
   "precision": {
-    name: "Precision (Distance Fighting)",
+    name: "🏹 Precision (Distance Fighting)",
     materials: ["25 Elven Scouting Glass", "20 Elven Hoof", "10 Metal Spike"]
   },
   "blockade": {
-    name: "Blockade (Shielding)",
+    name: "🛡️ Blockade (Shielding)",
     materials: ["20 Piece of Scarab Shell", "25 Brimstone Shell", "25 Frazzle Skin"]
   }
 };
@@ -101,7 +101,7 @@ module.exports = async (msg) => {
   try {
     const args = msg.body.split(' ').slice(1);
 
-    // ❌ sin argumentos
+    // sin argumentos
     if (!args.length) {
       const errorMsg = await msg.reply(
         'Para usar el comando utiliza:\n*!imbuement list* o *!imbuement <nombre>*'
@@ -115,7 +115,7 @@ module.exports = async (msg) => {
 
     const query = args.join(' ').toLowerCase();
 
-    // 📜 LISTA
+    // LISTA
     if (query === 'list') {
       const list = Object.values(imbuements)
         .map(i => i.name)
@@ -126,9 +126,9 @@ module.exports = async (msg) => {
 
     const imb = imbuements[query];
 
-    // ❌ no encontrado
+    // no encontrado
     if (!imb) {
-      const errorMsg = await msg.reply('❌ Imbuement no encontrado.');
+      const errorMsg = await msg.reply('Imbuement no encontrado.');
 
       await errorMsg.react('❎');
       await msg.react('❎');
@@ -143,7 +143,7 @@ module.exports = async (msg) => {
     text += `*Intricate:* ${m1}, ${m2}\n`;
     text += `*Powerful:* ${m1}, ${m2}, ${m3}`;
 
-    // ✅ éxito → solo responde (index maneja reacciones)
+    // éxito → solo responde (index maneja reacciones)
     return await msg.reply(text);
 
   } catch (error) {
@@ -151,7 +151,7 @@ module.exports = async (msg) => {
 
     try {
       await msg.react('❎');
-    } catch {}
+    } catch { }
 
     throw error;
   }
