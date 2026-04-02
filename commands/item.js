@@ -124,7 +124,7 @@ module.exports = async (msg) => {
     );
 
     const results = searchRes.data?.query?.search || [];
-    if (!results.length) return msg.reply('❌ No encontrado.');
+    if (!results.length) return msg.reply('No encontrado.');
 
     const blacklist = ['quest', 'outfit', 'mount', 'achievement'];
 
@@ -190,7 +190,7 @@ module.exports = async (msg) => {
     }
 
     if (!title || !content) {
-      return msg.reply('❌ No se encontró un ítem válido.');
+      return msg.reply('No se encontró un ítem válido.');
     }
 
     const s = parseStats(content);
