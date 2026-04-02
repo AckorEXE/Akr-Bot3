@@ -4,7 +4,7 @@ const imbuements = {
     materials: ["25 Fiery Heart", "5 Green Dragon Scale", "5 Demon Horn"]
   },
   "venom": {
-    name: "Venom (Earth Damage)",
+    name: "🌱 Venom (Earth Damage)",
     materials: ["25 Swamp Grass", "20 Poisonous Slime", "2 Slime Heart"]
   },
   "frost": {
