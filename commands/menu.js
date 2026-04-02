@@ -14,6 +14,7 @@ module.exports = async (msg) => {
 ├👾 *!monster* <nombre>  
 ├🤝 *!shared* <nivel>  
 ├🧞 *!rashid*
+├🔥 *!imbuement* <nombre>
 
 📥 *Descargas*  
 ├🧩 *!elfbot*  
