@@ -221,7 +221,6 @@ module.exports = async (msg) => {
     text += `\n🔎 https://tibia.fandom.com/wiki/${title}`;
 
     const sent = await msg.reply(text);
-    await sent.react('📚');
 
     return sent;
 
