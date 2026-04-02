@@ -169,54 +169,54 @@ module.exports = async (msg) => {
     const s = parseStats(content);
 
     let text = `📦 *${s.name || results[0].title}*\n\n`;
-    if (s.itemid) text += `🆔 ID: ${s.itemid}\n`;
-    if (s.level) text += `🎯 Nivel: ${s.level}\n`;
-    if (s.vocation) text += `🧙 Vocación: ${s.vocation}\n`;
+    if (s.itemid) text += `🆔 *ID:* ${s.itemid}\n`;
+    if (s.level) text += `🎯 *Nivel:* ${s.level}\n`;
+    if (s.vocation) text += `🧙 *Vocación:* ${s.vocation}\n`;
 
-    if (s.imbueslots) text += `💠 Imbuición máxima: ${s.imbueslots}\n`;
-    if (s.upgradeclass) text += `⬆️ Clasificación: ${s.upgradeclass}\n`;
+    if (s.imbueslots) text += `💠 *Imbuición máxima:* ${s.imbueslots}\n`;
+    if (s.upgradeclass) text += `⬆️ *Clasificación:* ${s.upgradeclass}\n`;
 
-    if (s.attack) text += `⚔️ Ataque: ${s.attack}\n`;
+    if (s.attack) text += `⚔️ *Ataque:* ${s.attack}\n`;
     if (s.damagerange)
-      text += `💥 Daño: ${s.damagerange} (${s.damagetype || ''})\n`;
-    if (s.range) text += `🏹 Rango: ${s.range}\n`;
+      text += `💥 *Daño:* ${s.damagerange} (${s.damagetype || ''})\n`;
+    if (s.range) text += `🏹 *Rango:* ${s.range}\n`;
     if (s.critchance)
 
-      text += `🎯 Probabilidad crítica extra: ${s.critchance}\n`;
+      text += `🎯 *Probabilidad crítica extra:* ${s.critchance}\n`;
     if (s.critdamage)
-      text += `💥 Daño crítico extra: ${s.critdamage}\n`;
+      text += `💥 *Daño crítico extra:* ${s.critdamage}\n`;
 
     if (s.hpleech_ch)
-      text += `🎯 Probabilidad robo de vida: ${s.hpleech_ch}\n`;
+      text += `🎯 *Probabilidad robo de vida:* ${s.hpleech_ch}\n`;
     if (s.hpleech_am)
-      text += `🩸 Robo de vida: ${s.hpleech_am}\n`;
+      text += `🩸 *Robo de vida:* ${s.hpleech_am}\n`;
 
     if (s.defense || s.armor) {
-      text += `🛡️ Defensa: ${s.defense || s.armor}`;
+      text += `🛡️ *Defensa:* ${s.defense || s.armor}`;
       if (s.defensemod) text += ` (${s.defensemod})`;
       text += `\n`;
     }
 
-    if (s.manacost) text += `🔮 Mana: ${s.manacost}\n`;
-    if (s.mantra) text += `🌀 Mantra: ${s.mantra}\n`;
+    if (s.manacost) text += `🔮 *Mana:* ${s.manacost}\n`;
+    if (s.mantra) text += `🌀 *Mantra:* ${s.mantra}\n`;
 
-    if (s.attributes) text += `✨ Atributos: ${s.attributes}\n`;
-    if (s.resist) text += `🛡️ Resistencias: ${s.resist}\n`;
-    if (s.augments) text += `🧩 Aumentos: ${s.augments}\n`;
+    if (s.attributes) text += `✨ *Atributos:* ${s.attributes}\n`;
+    if (s.resist) text += `🛡️ *Resistencias:* ${s.resist}\n`;
+    if (s.augments) text += `🧩 *Aumentos:* ${s.augments}\n`;
 
-    if (s.weight) text += `⚖️ Peso: ${s.weight} oz\n`;
+    if (s.weight) text += `⚖️ *Peso:* ${s.weight} oz\n`;
 
     if (s.npcprice && parseInt(s.npcprice) > 0)
-      text += `🛒 Compra NPC: ${s.npcprice} gp\n`;
+      text += `🛒 *Compra NPC:* ${s.npcprice} gp\n`;
 
     if (s.npcvalue && parseInt(s.npcvalue) > 0)
-      text += `💰 Venta NPC: ${s.npcvalue} gp\n`;
+      text += `💰 *Venta NPC:* ${s.npcvalue} gp\n`;
 
-    if (s.buyfrom) text += `\n🛍️ Compra en:\n${s.buyfrom}\n`;
-    if (s.sellto) text += `\n💸 Vende a:\n${s.sellto}\n`;
+    if (s.buyfrom) text += `\n🛍️ *Comprar con:*\n${s.buyfrom}\n`;
+    if (s.sellto) text += `\n💸 *Vender con:*\n${s.sellto}\n`;
 
     if (s.droppedby)
-      text += `\n🎁 Looteada por:\n${s.droppedby}\n`;
+      text += `\n🎁 *Looteada por:*\n${s.droppedby}\n`;
 
     text += `\n🔎 https://tibia.fandom.com/wiki/${title}`;
 
