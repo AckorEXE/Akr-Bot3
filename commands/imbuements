@@ -97,40 +97,49 @@ const imbuements = {
   }
 };
 
-module.exports = async (msg) => {
-  const args = msg.body.split(' ').slice(1);
+module.exports = async (msg, safeReact) => {
+  try {
+    const args = msg.body.split(' ').slice(1);
 
-  // ❌ sin argumentos
-  if (!args.length) {
-    return msg.reply(
-      'Para usar el comando utiliza:\n*!imbuiment list* o *!imbuiment <nombre>*'
-    );
+    // ❌ sin argumentos
+    if (!args.length) {
+      await safeReact(msg, '❎');
+      return msg.reply(
+        'Para usar el comando utiliza:\n*!imbuement list* o *!imbuement <nombre>*'
+      );
+    }
+
+    const query = args.join(' ').toLowerCase();
+
+    // 📜 LISTA
+    if (query === 'list') {
+      const list = Object.values(imbuements)
+        .map(i => i.name)
+        .join('\n');
+
+      return msg.reply(list);
+    }
+
+    const imb = imbuements[query];
+
+    // ❌ no encontrado
+    if (!imb) {
+      await safeReact(msg, '❎');
+      return msg.reply('Imbuement no encontrado.');
+    }
+
+    const [m1, m2, m3] = imb.materials;
+
+    let text = `*${imb.name}*\n\n`;
+    text += `*Basic:* ${m1}\n`;
+    text += `*Intricate:* ${m1}, ${m2}\n`;
+    text += `*Powerful:* ${m1}, ${m2}, ${m3}`;
+
+    return msg.reply(text);
+
+  } catch (err) {
+    console.log('❌ ERROR:', err.message);
+    await safeReact(msg, '❎');
+    return msg.reply('Error.');
   }
-
-  const query = args.join(' ').toLowerCase();
-
-  // 📜 LISTA
-  if (query === 'list') {
-    const list = Object.values(imbuements)
-      .map(i => i.name)
-      .join('\n');
-
-    return msg.reply(list);
-  }
-
-  const imb = imbuements[query];
-
-  // ❌ no encontrado
-  if (!imb) {
-    return msg.reply('Imbuement no encontrado.');
-  }
-
-  const [m1, m2, m3] = imb.materials;
-
-  let text = `*${imb.name}*\n\n`;
-  text += `*Basic:* ${m1}\n`;
-  text += `*Intricate:* ${m1}, ${m2}\n`;
-  text += `*Powerful:* ${m1}, ${m2}, ${m3}`;
-
-  return msg.reply(text);
 };
