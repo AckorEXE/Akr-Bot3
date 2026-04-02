@@ -103,10 +103,14 @@ module.exports = async (msg) => {
 
     // ❌ sin argumentos
     if (!args.length) {
-      try { await msg.react('❎'); } catch {}
-      return msg.reply(
+      const errorMsg = await msg.reply(
         'Para usar el comando utiliza:\n*!imbuement list* o *!imbuement <nombre>*'
       );
+
+      await errorMsg.react('❎');
+      await msg.react('❎');
+
+      return null;
     }
 
     const query = args.join(' ').toLowerCase();
@@ -117,15 +121,19 @@ module.exports = async (msg) => {
         .map(i => i.name)
         .join('\n');
 
-      return msg.reply(list);
+      return await msg.reply(list);
     }
 
     const imb = imbuements[query];
 
     // ❌ no encontrado
     if (!imb) {
-      try { await msg.react('❎'); } catch {}
-      return msg.reply('Imbuement no encontrado.');
+      const errorMsg = await msg.reply('❌ Imbuement no encontrado.');
+
+      await errorMsg.react('❎');
+      await msg.react('❎');
+
+      return null;
     }
 
     const [m1, m2, m3] = imb.materials;
@@ -135,11 +143,16 @@ module.exports = async (msg) => {
     text += `*Intricate:* ${m1}, ${m2}\n`;
     text += `*Powerful:* ${m1}, ${m2}, ${m3}`;
 
-    return msg.reply(text);
+    // ✅ éxito → solo responde (index maneja reacciones)
+    return await msg.reply(text);
 
-  } catch (err) {
-    console.log('❌ ERROR:', err.message);
-    try { await msg.react('❎'); } catch {}
-    return msg.reply('Error.');
+  } catch (error) {
+    console.error('Error en comando imbuement:', error);
+
+    try {
+      await msg.react('❎');
+    } catch {}
+
+    throw error;
   }
 };
