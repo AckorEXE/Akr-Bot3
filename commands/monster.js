@@ -26,7 +26,7 @@ function isValidMonster(raw) {
   return /\|\s*hp\s*=/.test(raw) && /\|\s*exp\s*=/.test(raw);
 }
 
-// 💥 parse max damage
+// 💥 parse max damage (FORMATO NUEVO)
 function parseMaxDamage(raw) {
   const match = raw.match(/\{\{Max Damage\|([^}]+)\}\}/i);
   if (!match) return null;
@@ -54,7 +54,7 @@ function parseMaxDamage(raw) {
       if (!isNaN(val)) {
         total += val;
         const emoji = map[type.trim()] || '❔';
-        parts.push(`${emoji} ${type.trim()}: ${val}`);
+        parts.push(`${val} ${emoji} ${type.trim()}`);
       }
     }
   });
@@ -65,19 +65,19 @@ function parseMaxDamage(raw) {
   };
 }
 
-// 🛡️ resistencias
+// 🛡️ resistencias ORDENADAS + DEBILIDAD
 function parseResistances(raw) {
   const map = {
-    physicalDmgMod: '👊🏻',
-    earthDmgMod: '🌱',
-    fireDmgMod: '🔥',
-    deathDmgMod: '💀',
-    energyDmgMod: '⚡',
-    holyDmgMod: '✨',
-    iceDmgMod: '❄️',
-    hpDrainDmgMod: '🩸',
-    drownDmgMod: '🌊',
-    healMod: '💚'
+    physicalDmgMod: { emoji: '👊🏻', name: 'physical' },
+    earthDmgMod: { emoji: '🌱', name: 'earth' },
+    fireDmgMod: { emoji: '🔥', name: 'fire' },
+    deathDmgMod: { emoji: '💀', name: 'death' },
+    energyDmgMod: { emoji: '⚡', name: 'energy' },
+    holyDmgMod: { emoji: '✨', name: 'holy' },
+    iceDmgMod: { emoji: '❄️', name: 'ice' },
+    hpDrainDmgMod: { emoji: '🩸', name: 'lifedrain' },
+    drownDmgMod: { emoji: '🌊', name: 'drown' },
+    healMod: { emoji: '💚', name: 'healing' }
   };
 
   let result = [];
@@ -85,15 +85,31 @@ function parseResistances(raw) {
   for (const key in map) {
     const val = getMulti(raw, [key]);
     if (val) {
-      result.push(`${map[key]} ${key.replace('DmgMod', '')}: ${val}`);
+      const num = parseInt(val.replace('%', '').trim());
+      if (!isNaN(num)) {
+        let text = `${map[key].emoji} ${map[key].name}: ${val}`;
+
+        // 🔥 debilidad (>100%)
+        if (num > 100) {
+          text = `*${text}*`;
+        }
+
+        result.push({
+          value: num,
+          text
+        });
+      }
     }
   }
 
-  return result.length ? result.join('\n') : null;
+  // ordenar DESC
+  result.sort((a, b) => b.value - a.value);
+
+  return result.length ? result.map(x => x.text).join('\n') : null;
 }
 
-// 🎯 calcular charm points
-function calculateCharmPoints(level, occurrence) {
+// 🎯 charm points
+function calculateCharmPoints(level) {
   const table = {
     Trivial: 1,
     Easy: 5,
@@ -103,8 +119,8 @@ function calculateCharmPoints(level, occurrence) {
   return table[level] || null;
 }
 
-// 📊 calcular kills to unlock
-function calculateKills(level, occurrence) {
+// 📊 kills unlock
+function calculateKills(level) {
   const table = {
     Trivial: 25,
     Easy: 250,
@@ -114,7 +130,7 @@ function calculateKills(level, occurrence) {
   return table[level] || null;
 }
 
-// 🎁 loot inline SIN emojis
+// 🎁 loot inline limpio
 function parseLoot(raw) {
   const matches = [...raw.matchAll(/\{\{Loot Item\|([^}]+)\}\}/gi)];
   if (!matches.length) return null;
@@ -142,12 +158,11 @@ function parseLoot(raw) {
   return result.join(', ');
 }
 
-// 🧠 parse monster stats
+// 🧠 parse monster
 function parseMonster(raw) {
   const dmg = parseMaxDamage(raw);
 
   const bestiarylevel = getMulti(raw, ['bestiarylevel']);
-  const occurrence = getMulti(raw, ['occurrence']);
 
   return {
     name: getMulti(raw, ['name']),
@@ -155,8 +170,8 @@ function parseMonster(raw) {
     exp: getMulti(raw, ['exp']),
     maxdmg: dmg,
     resist: parseResistances(raw),
-    charmPoints: calculateCharmPoints(bestiarylevel, occurrence),
-    kills: calculateKills(bestiarylevel, occurrence),
+    charmPoints: calculateCharmPoints(bestiarylevel),
+    kills: calculateKills(bestiarylevel),
     loot: parseLoot(raw)
   };
 }
@@ -234,7 +249,7 @@ module.exports = async (msg) => {
     if (s.exp) text += `✨ *Experiencia:* ${s.exp}\n`;
 
     if (s.maxdmg)
-      text += `\n💥 *Daño máximo aproximado:* ${s.maxdmg.total}\n"${s.maxdmg.text}"\n`;
+      text += `\n💥 *Daño máximo:* _${s.maxdmg.total}_\n${s.maxdmg.text}\n`;
 
     if (s.resist)
       text += `\n🛡️ *Daños recibidos:*\n${s.resist}\n`;
