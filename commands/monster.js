@@ -73,11 +73,10 @@ function parseResistances(raw) {
     fireDmgMod: { emoji: '🔥', name: 'fire' },
     deathDmgMod: { emoji: '💀', name: 'death' },
     energyDmgMod: { emoji: '⚡', name: 'energy' },
-    holyDmgMod: { emoji: '✨', name: 'holy' },
+    holyDmgMod: { emoji: '✝️', name: 'holy' },
     iceDmgMod: { emoji: '❄️', name: 'ice' },
     hpDrainDmgMod: { emoji: '🩸', name: 'lifedrain' },
     drownDmgMod: { emoji: '🌊', name: 'drown' },
-    healMod: { emoji: '💚', name: 'healing' }
   };
 
   let result = [];
@@ -249,16 +248,16 @@ module.exports = async (msg) => {
     if (s.exp) text += `✨ *Experiencia:* ${s.exp}\n`;
 
     if (s.maxdmg)
-      text += `\n💥 *Daño máximo:* _${s.maxdmg.total}_\n${s.maxdmg.text}\n`;
+      text += `\n💥 *Daño máximo:* ${s.maxdmg.total}\n(${s.maxdmg.text})\n`;
 
     if (s.resist)
-      text += `\n🛡️ *Daños recibidos:*\n${s.resist}\n`;
+      text += `\n🛡️ *Debilidades:*\n${s.resist}\n`;
 
     if (s.charmPoints)
-      text += `\n🎯 *Charm Points:* ${s.charmPoints}\n`;
+      text += `\n🎯 *Puntos de charms:* ${s.charmPoints}\n`;
 
     if (s.kills)
-      text += `📊 *Kills para unlock:* ${s.kills}\n`;
+      text += `📊 *Muertes para desbloquear:* ${s.kills}\n`;
 
     if (s.loot)
       text += `\n🎁 *Loot:* ${s.loot}\n`;
@@ -270,7 +269,7 @@ module.exports = async (msg) => {
   } catch (err) {
     console.log('❌ ERROR:', err.message);
 
-    const errorMsg = await msg.reply('❌ Error.');
+    const errorMsg = await msg.reply('Error.');
     await errorMsg.react('❎');
     await msg.react('❎');
 
