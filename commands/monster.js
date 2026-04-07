@@ -137,14 +137,20 @@ function calculateCharmPoints(level) {
 }
 
 // 📊 kills unlock
-function calculateKills(level) {
+function calculateKills(level, occurrence) {
   const table = {
-    Trivial: 25,
-    Easy: 250,
-    Medium: 1000,
-    Hard: 2500
+    Trivial: { Common: 25, Uncommon: 5, Rare: 1 },
+    Easy: { Common: 250, Uncommon: 50, Rare: 10 },
+    Medium: { Common: 1000, Uncommon: 250, Rare: 50 },
+    Hard: { Common: 2500, Uncommon: 500, Rare: 100 }
   };
-  return table[level] || null;
+
+  if (!level || !occurrence) return null;
+
+  const lvl = level.trim();
+  const occ = occurrence.trim();
+
+  return table[lvl]?.[occ] || null;
 }
 
 // 🎁 loot inline limpio
@@ -180,6 +186,7 @@ function parseMonster(raw) {
   const dmg = parseMaxDamage(raw);
 
   const bestiarylevel = getMulti(raw, ['bestiarylevel']);
+  const occurrence = getMulti(raw, ['occurrence']);
 
   return {
     name: getMulti(raw, ['name']),
@@ -188,7 +195,7 @@ function parseMonster(raw) {
     maxdmg: dmg,
     resist: parseResistances(raw),
     charmPoints: calculateCharmPoints(bestiarylevel),
-    kills: calculateKills(bestiarylevel),
+    kills: calculateKills(bestiarylevel, occurrence),
     loot: parseLoot(raw)
   };
 }
