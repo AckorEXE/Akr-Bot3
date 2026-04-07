@@ -242,7 +242,7 @@ module.exports = async (msg) => {
 
     const s = parseMonster(content);
 
-    let text = `👹 *${s.name || query}*\n\n`;
+    let text = `👾 *${s.name || query}*\n\n`;
 
     if (s.hp) text += `❤️ *Vida:* ${s.hp}\n`;
     if (s.exp) text += `✨ *Experiencia:* ${s.exp}\n`;
