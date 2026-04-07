@@ -137,6 +137,19 @@ function calculateCharmPoints(level) {
 }
 
 // 📊 kills unlock
+function normalizeOccurrence(occ) {
+  if (!occ) return null;
+
+  const o = occ.toLowerCase();
+
+  if (o.includes('very common')) return 'Common';
+  if (o.includes('common')) return 'Common';
+  if (o.includes('uncommon')) return 'Uncommon';
+  if (o.includes('rare')) return 'Rare';
+
+  return null;
+}
+
 function calculateKills(level, occurrence) {
   const table = {
     Trivial: { Common: 25, Uncommon: 5, Rare: 1 },
@@ -148,7 +161,7 @@ function calculateKills(level, occurrence) {
   if (!level || !occurrence) return null;
 
   const lvl = level.trim();
-  const occ = occurrence.trim();
+  const occ = normalizeOccurrence(occurrence);
 
   return table[lvl]?.[occ] || null;
 }
