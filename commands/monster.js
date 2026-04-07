@@ -26,7 +26,7 @@ function isValidMonster(raw) {
   return /\|\s*hp\s*=/.test(raw) && /\|\s*exp\s*=/.test(raw);
 }
 
-// 💥 parse max damage (FORMATO PRO)
+// 💥 parse max damage
 function parseMaxDamage(raw) {
   const match = raw.match(/\{\{Max Damage\|([^}]+)\}\}/i);
   if (!match) return null;
@@ -92,35 +92,32 @@ function parseResistances(raw) {
   return result.length ? result.join('\n') : null;
 }
 
-// 🎯 charm points (FIX REAL)
-function parseCharmPoints(raw) {
-  const match = raw.match(/\{\{Charm Points\|(\d+)/i);
-  return match ? match[1] : null;
+// 🎯 calcular charm points
+function calculateCharmPoints(level, occurrence) {
+  const table = {
+    Trivial: 1,
+    Easy: 5,
+    Medium: 15,
+    Hard: 50
+  };
+  return table[level] || null;
 }
 
-// 📊 kills to unlock (FIX REAL)
-function parseKills(raw) {
-  const match = raw.match(/\{\{Kills to Unlock\|([^}]+)\}\}/i);
-  if (!match) return null;
-
-  return match[1]
-    .split('|')
-    .map(x => x.trim())
-    .join(' / ');
+// 📊 calcular kills to unlock
+function calculateKills(level, occurrence) {
+  const table = {
+    Trivial: 25,
+    Easy: 250,
+    Medium: 1000,
+    Hard: 2500
+  };
+  return table[level] || null;
 }
 
-// 🎁 LOOT PRO (para Loot Table)
+// 🎁 loot inline SIN emojis
 function parseLoot(raw) {
   const matches = [...raw.matchAll(/\{\{Loot Item\|([^}]+)\}\}/gi)];
   if (!matches.length) return null;
-
-  const rarityMap = {
-    common: '⚪',
-    uncommon: '🟢',
-    'semi-rare': '🔵',
-    rare: '🟣',
-    'very rare': '🟡'
-  };
 
   let result = [];
 
@@ -129,32 +126,28 @@ function parseLoot(raw) {
 
     let count = null;
     let name = null;
-    let rarity = 'common';
 
     if (parts.length === 3) {
       count = parts[0];
       name = parts[1];
-      rarity = parts[2];
     } else if (parts.length === 2) {
       name = parts[0];
-      rarity = parts[1];
     }
 
-    const emoji = rarityMap[rarity] || '⚪';
-
     if (name) {
-      result.push(
-        `${emoji} ${name}${count ? ` (${count})` : ''}`
-      );
+      result.push(`${name}${count ? ` (${count})` : ''}`);
     }
   });
 
-  return result.join('\n');
+  return result.join(', ');
 }
 
 // 🧠 parse monster stats
 function parseMonster(raw) {
   const dmg = parseMaxDamage(raw);
+
+  const bestiarylevel = getMulti(raw, ['bestiarylevel']);
+  const occurrence = getMulti(raw, ['occurrence']);
 
   return {
     name: getMulti(raw, ['name']),
@@ -162,8 +155,8 @@ function parseMonster(raw) {
     exp: getMulti(raw, ['exp']),
     maxdmg: dmg,
     resist: parseResistances(raw),
-    charmPoints: parseCharmPoints(raw),
-    kills: parseKills(raw),
+    charmPoints: calculateCharmPoints(bestiarylevel, occurrence),
+    kills: calculateKills(bestiarylevel, occurrence),
     loot: parseLoot(raw)
   };
 }
@@ -235,7 +228,7 @@ module.exports = async (msg) => {
 
     const s = parseMonster(content);
 
-    let text = `👾 *${s.name || query}*\n\n`;
+    let text = `👹 *${s.name || query}*\n\n`;
 
     if (s.hp) text += `❤️ *Vida:* ${s.hp}\n`;
     if (s.exp) text += `✨ *Experiencia:* ${s.exp}\n`;
@@ -253,7 +246,7 @@ module.exports = async (msg) => {
       text += `📊 *Kills para unlock:* ${s.kills}\n`;
 
     if (s.loot)
-      text += `\n🎁 *Loot:*\n${s.loot}\n`;
+      text += `\n🎁 *Loot:* ${s.loot}\n`;
 
     text += `\n🔎 https://tibia.fandom.com/wiki/${title}`;
 
