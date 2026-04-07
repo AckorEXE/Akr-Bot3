@@ -28,8 +28,8 @@ function isValidMonster(raw) {
 
 // 💥 parse max damage (FORMATO NUEVO)
 function parseMaxDamage(raw) {
+  // 🔥 Caso 1: formato template {{Max Damage|...}}
   const match = raw.match(/\{\{Max Damage\|([^}]+)\}\}/i);
-  if (!match) return null;
 
   const map = {
     physical: '👊🏻',
@@ -44,25 +44,43 @@ function parseMaxDamage(raw) {
     summons: '👹'
   };
 
-  let total = 0;
-  let parts = [];
+  // ✅ Si es formato complejo
+  if (match) {
+    let total = 0;
+    let parts = [];
 
-  match[1].split('|').forEach(part => {
-    const [type, value] = part.split('=');
-    if (type && value) {
-      const val = parseInt(value.trim());
-      if (!isNaN(val)) {
-        total += val;
-        const emoji = map[type.trim()] || '❔';
-        parts.push(`${val} ${emoji} ${type.trim()}`);
+    match[1].split('|').forEach(part => {
+      const [type, value] = part.split('=');
+      if (type && value) {
+        const val = parseInt(value.trim());
+        if (!isNaN(val)) {
+          total += val;
+          const emoji = map[type.trim()] || '❔';
+          parts.push(`${val} ${emoji} ${type.trim()}`);
+        }
       }
-    }
-  });
+    });
 
-  return {
-    total,
-    text: parts.join(', +')
-  };
+    return {
+      total,
+      text: parts.join(', +')
+    };
+  }
+
+  // 🔥 Caso 2: valor simple | maxdmg = 203
+  const simple = getMulti(raw, ['maxdmg']);
+
+  if (simple) {
+    const val = parseInt(simple);
+    if (!isNaN(val)) {
+      return {
+        total: val,
+        text: `${val} 👊🏻 physical` // asumimos físico
+      };
+    }
+  }
+
+  return null;
 }
 
 // 🛡️ resistencias ORDENADAS + DEBILIDAD
