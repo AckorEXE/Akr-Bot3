@@ -105,7 +105,7 @@ module.exports = async (msg) => {
         }
 
         // 🎥 VIDEO / GIF → animado
-        await msg.react('🔄');
+        await msg.react('⏳');
 
         const success = await convertToWebp(inputPath, outputPath);
 
@@ -122,9 +122,6 @@ module.exports = async (msg) => {
             stickerAuthor: 'AkR Bot',
             stickerName: 'AkR'
         });
-
-        await msg.react('🎞️');
-
         return sent;
 
     } catch (error) {
