@@ -8,9 +8,9 @@ ffmpeg.setFfmpegPath(ffmpegPath);
 
 module.exports = async (msg) => {
     const id = Date.now();
-    const ext = media.mimetype.split('/')[1];
-    const inputPath = path.join(__dirname, `input_${id}.${ext}`);
-    const outputPath = path.join(__dirname, `output_${id}.webp`);
+
+    let inputPath = '';
+    let outputPath = path.join(__dirname, `output_${id}.webp`);
 
     try {
         await msg.react('⏳');
@@ -36,6 +36,10 @@ module.exports = async (msg) => {
             return msg.reply('Envía o responde a una imagen, video o GIF.');
         }
 
+        // ✅ AHORA sí puedes usar media
+        const ext = media.mimetype.split('/')[1];
+        inputPath = path.join(__dirname, `input_${id}.${ext}`);
+
         // 📦 Guardar archivo
         const buffer = Buffer.from(media.data, 'base64');
         fs.writeFileSync(inputPath, buffer);
@@ -54,17 +58,15 @@ module.exports = async (msg) => {
             await msg.react('🖼️');
             return sent;
         }
-        // 🎥 VIDEO / GIF → ANIMADO PRO
+
+        // 🎥 VIDEO / GIF → ANIMADO
         await msg.react('⏳');
 
         await new Promise((resolve, reject) => {
             ffmpeg(inputPath)
-                .inputOptions([
-                    '-t 5' // ⚠️ mejor 5s para evitar errores
-                ])
+                .inputOptions(['-t 5'])
                 .outputOptions([
                     '-vf',
-                    // 🔥 FORMATO CORRECTO WHATSAPP
                     'scale=512:512:force_original_aspect_ratio=decrease,' +
                     'pad=512:512:(ow-iw)/2:(oh-ih)/2:color=0x00000000,' +
                     'fps=10',
@@ -81,20 +83,21 @@ module.exports = async (msg) => {
                 .toFormat('webp')
                 .save(outputPath)
                 .on('end', resolve)
-                .on('error', reject);
+                .on('error', (err) => {
+                    console.error('FFmpeg error real:', err);
+                    reject(err);
+                });
         });
-        const stats = fs.statSync(outputPath);
 
-        if (stats.size > 1000000) { // 1MB límite seguro
+        // 📏 Validar peso
+        const stats = fs.statSync(outputPath);
+        if (stats.size > 1000000) {
             throw new Error('Sticker demasiado pesado');
         }
 
         const webp = fs.readFileSync(outputPath, { encoding: 'base64' });
 
-        const sticker = new MessageMedia(
-            'image/webp',
-            webp
-        );
+        const sticker = new MessageMedia('image/webp', webp);
 
         const sent = await msg.reply(sticker, undefined, {
             sendMediaAsSticker: true,
@@ -102,7 +105,7 @@ module.exports = async (msg) => {
             stickerName: 'AkR'
         });
 
-        await msg.react('🖼️');
+        await msg.react('🎞️');
 
         return sent;
 
@@ -111,13 +114,13 @@ module.exports = async (msg) => {
 
         try {
             await msg.react('❎');
-        } catch { }
+        } catch {}
 
         throw error;
 
     } finally {
         // 🧹 limpieza segura
-        try { if (fs.existsSync(inputPath)) fs.unlinkSync(inputPath); } catch { }
-        try { if (fs.existsSync(outputPath)) fs.unlinkSync(outputPath); } catch { }
+        try { if (inputPath && fs.existsSync(inputPath)) fs.unlinkSync(inputPath); } catch {}
+        try { if (fs.existsSync(outputPath)) fs.unlinkSync(outputPath); } catch {}
     }
 };
