@@ -167,11 +167,11 @@ module.exports = async (msg) => {
 
     const [m1, m2, m3] = imb.materials;
 
-    let text = `*${imb.name}*\n\n\n\n`;
-    text += `1️⃣ *Basic:* ${m1}\n`;
-    text += `2️⃣ *Intricate:* ${m1}, ${m2}\n`;
-    text += `3️⃣ *Powerful:* ${m1}, ${m2}, ${m3}\n\n`;
-    text += `🧩 *Compatible con:* ${imb.compatible.join(', ')}`;
+    let text = `*${imb.name}*\n\n\`;
+    text += `1️⃣ * Basic:* ${ m1 } \n`;
+    text += `2️⃣ * Intricate:* ${ m1 }, ${ m2 } \n`;
+    text += `3️⃣ * Powerful:* ${ m1 }, ${ m2 }, ${ m3 } \n\n`;
+    text += `🧩 * Compatible con:* ${ imb.compatible.join(', ') } `;
 
     return await msg.reply(text);
 
