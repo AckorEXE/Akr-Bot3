@@ -1,3 +1,6 @@
+// 🧠 WEAPONT TYPE
+const weaponTypes = ["axe", "sword", "club", "bow", "crossbow", "wand", "rod", "fist"];
+
 // 🔥 IMBUEMENTS
 const imbuements = {
   "scorch": { name: "🔥 Scorch (Fire Damage)", materials: ["25 Fiery Heart", "5 Green Dragon Scale", "5 Demon Horn"], compatible: ["Weapon"] },
@@ -18,7 +21,19 @@ const imbuements = {
 
   "vibrancy": { name: "🪞 Vibrancy (Paralysis Deflection)", materials: ["20 Wereboar Hooves", "15 Crystallized Anger", "5 Quill"], compatible: ["Boots"] },
   "swiftness": { name: "🪶 Swiftness (Walking Speed)", materials: ["15 Damselfly Wing", "25 Compass", "20 Waspoid Wing"], compatible: ["Boots"] },
-  "featherweight": { name: "🎒 Featherweight (Capacity)", materials: ["20 Fairy Wings", "10 Little Bowl of Myrrh", "5 Goosebump Leather"], compatible: ["Backpack"] }
+  "featherweight": { name: "🎒 Featherweight (Capacity)", materials: ["20 Fairy Wings", "10 Little Bowl of Myrrh", "5 Goosebump Leather"], compatible: ["Backpack"] },
+
+  "snake skin": { name: "🌱 Snake Skin (Earth Protection)", materials: ["25 Swampling Wood", "20 Snake Skin", "10 Brimstone Fangs"], compatible: ["Armor", "Shield", "Spellbook"] },
+  "dragon hide": { name: "🔥 Dragon Hide (Fire Protection)", materials: ["20 Green Dragon Leather", "10 Blazing Bone", "5 Draken Sulphur"], compatible: ["Armor", "Shield", "Spellbook"] },
+  "quara scale": { name: "❄️ Quara Scale (Ice Protection)", materials: ["25 Winter Wolf Fur", "10 Thick Fur", "10 Deepling Wart"], compatible: ["Armor", "Shield", "Spellbook"] },
+  "cloud fabric": { name: "⚡ Cloud Fabric (Energy Protection)", materials: ["20 Wyvern Talisman", "15 Crawler Head Plating", "10 Wyrm Scale"], compatible: ["Armor", "Shield", "Spellbook"] },
+  "demon presence": { name: "✝️ Demon Presence (Holy Protection)", materials: ["25 Cultish Robe", "25 Cultish Mask", "20 Hellspawn Tail"], compatible: ["Armor", "Shield", "Spellbook"] },
+
+  "punch": { name: "👊 Punch (Fist Fighting)", materials: ["25 Tarantula Egg", "20 Mantassin Tail", "15 Gold-Brocaded Cloth"], compatible: ["Weapon"] },
+  "bash": { name: "🔨 Bash (Club Fighting)", materials: ["20 Cyclops Toe", "15 Ogre Nose Ring", "10 Warmaster’s Wristguards"], compatible: ["Weapon"] },
+  "slash": { name: "🗡️ Slash (Sword Fighting)", materials: ["25 Lion’s Mane", "25 Mooh’tah Shell", "5 War Crystal"], compatible: ["Weapon"] },
+  "chop": { name: "🪓 Chop (Axe Fighting)", materials: ["20 Orc Tooth", "25 Battle Stone", "20 Moohtant Horn"], compatible: ["Weapon"] },
+  "precision": { name: "🏹 Precision (Distance Fighting)", materials: ["25 Elven Scouting Glass", "20 Elven Hoof", "10 Metal Spike"], compatible: ["Weapon"] },
 };
 
 // 🧠 PARSER DE ITEMS (convierte "Demon Helmet 2" → {name, slots})
@@ -142,16 +157,32 @@ module.exports = async (msg) => {
 
     // 🧩 FILTRO POR TIPO
     if (itemTypes[query]) {
+
+      // detectar categoría real
+      let category = query;
+
+      if (weaponTypes.includes(query)) {
+        category = "weapon";
+      }
+
+      // obtener imbuements compatibles
       const imbs = Object.values(imbuements)
-        .filter(i => i.compatible.map(c => c.toLowerCase()).includes(query))
+        .filter(i => i.compatible.map(c => c.toLowerCase()).includes(category))
         .map(i => i.name)
         .join('\n');
 
+      // items
       const items = itemTypes[query]
         .map(i => `• ${i.name} (${i.slots} slots)`)
         .join('\n');
 
-      let text = `💠 *Lista de ${query.charAt(0).toUpperCase() + query.slice(1).toLowerCase()} con imbuements*\n\n${items}`;
+      let text = `💠 *Lista de ${query.charAt(0).toUpperCase() + query.slice(1)} con imbuements*\n\n`;
+
+      text += `📜 *Imbuements compatibles:*\n`;
+      text += `${imbs || 'Ninguno'}\n\n`;
+
+      text += `📦 *Items:*\n${items}`;
+
       return await msg.reply(text);
     }
 
