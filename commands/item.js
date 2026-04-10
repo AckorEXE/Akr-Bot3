@@ -113,7 +113,14 @@ function parseStats(raw) {
 module.exports = async (msg) => {
   try {
     const args = msg.body.split(' ').slice(1);
-    if (!args.length) return msg.reply('Uso correcto: *!item <nombre>*');
+
+    // ❌ Sin argumentos → falla
+    if (!args.length) {
+      const errorMsg = await msg.reply('Uso correcto: *!item <nombre>*');
+      await errorMsg.react('❎');
+      await msg.react('❎');
+      return null;
+    }
 
     const query = args.join(' ');
     const normalizedQuery = query.toLowerCase().trim();
@@ -124,7 +131,14 @@ module.exports = async (msg) => {
     );
 
     const results = searchRes.data?.query?.search || [];
-    if (!results.length) return msg.reply('No encontrado.');
+
+    // ❌ Sin resultados → falla
+    if (!results.length) {
+      const errorMsg = await msg.reply('No encontrado.');
+      await errorMsg.react('❎');
+      await msg.react('❎');
+      return null;
+    }
 
     const blacklist = ['quest', 'outfit', 'mount', 'achievement'];
 
@@ -189,8 +203,12 @@ module.exports = async (msg) => {
       }
     }
 
+    // ❌ No se encontró ítem válido → falla
     if (!title || !content) {
-      return msg.reply('No se encontró un ítem válido.');
+      const errorMsg = await msg.reply('No se encontró un ítem válido.');
+      await errorMsg.react('❎');
+      await msg.react('❎');
+      return null;
     }
 
     const s = parseStats(content);
@@ -247,10 +265,12 @@ module.exports = async (msg) => {
 
     text += `\n🔎 https://tibia.fandom.com/wiki/${title}`;
 
+    // ✅ ÉXITO → devolver para que index.js ponga su reacción
     return msg.reply(text);
 
   } catch (err) {
     console.log('❌ ERROR:', err.message);
-    return msg.reply('❌ Error.');
+    try { await msg.react('❎'); } catch {}
+    throw err;
   }
 };
