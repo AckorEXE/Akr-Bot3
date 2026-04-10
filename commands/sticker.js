@@ -6,7 +6,7 @@ const path = require('path');
 
 ffmpeg.setFfmpegPath(ffmpegPath);
 
-// 🔥 FUNCIÓN PRO: compresión automática + recorte cuadrado
+// 🔥 VIDEO/GIF → WEBP animado con compresión
 async function convertToWebp(inputPath, outputPath) {
     let quality = 60;
 
@@ -16,7 +16,6 @@ async function convertToWebp(inputPath, outputPath) {
                 .inputOptions(['-t 5'])
                 .outputOptions([
                     '-vf',
-                    // 🔥 RECORTE AUTOMÁTICO 1:1 (CENTRO)
                     "crop=min(iw\\,ih):min(iw\\,ih):(iw-min(iw\\,ih))/2:(ih-min(iw\\,ih))/2,scale=512:512,fps=10",
 
                     '-vcodec', 'libwebp',
@@ -31,23 +30,36 @@ async function convertToWebp(inputPath, outputPath) {
                 .toFormat('webp')
                 .save(outputPath)
                 .on('end', resolve)
-                .on('error', (err) => {
-                    console.error('FFmpeg error real:', err);
-                    reject(err);
-                });
+                .on('error', reject);
         });
 
         const stats = fs.statSync(outputPath);
-        console.log(`Intento calidad ${quality} → ${stats.size} bytes`);
 
-        if (stats.size <= 1000000) {
-            return true; // ✅ listo
-        }
+        if (stats.size <= 1000000) return true;
 
-        quality -= 10; // 🔻 bajar calidad
+        quality -= 10;
     }
 
-    return false; // ❌ no se pudo comprimir suficiente
+    return false;
+}
+
+// 🔥 IMAGEN → WEBP estático cuadrado
+async function convertImageToWebp(inputPath, outputPath) {
+    await new Promise((resolve, reject) => {
+        ffmpeg(inputPath)
+            .outputOptions([
+                '-vf',
+                "crop=min(iw\\,ih):min(iw\\,ih):(iw-min(iw\\,ih))/2:(ih-min(iw\\,ih))/2,scale=512:512",
+
+                '-vcodec', 'libwebp',
+                '-lossless', '0',
+                '-q:v', '80'
+            ])
+            .toFormat('webp')
+            .save(outputPath)
+            .on('end', resolve)
+            .on('error', reject);
+    });
 }
 
 module.exports = async (msg) => {
@@ -74,39 +86,31 @@ module.exports = async (msg) => {
             }
         }
 
-        // ❌ No hay media
         if (!media) {
             await msg.react('❎');
             return msg.reply('Envía o responde a una imagen, video o GIF.');
         }
 
-        // 📂 Extensión correcta
         const ext = media.mimetype.split('/')[1];
         inputPath = path.join(__dirname, `input_${id}.${ext}`);
 
-        // 💾 Guardar archivo
         const buffer = Buffer.from(media.data, 'base64');
         fs.writeFileSync(inputPath, buffer);
 
         const isVideo = media.mimetype.includes('video');
         const isGif = media.mimetype.includes('gif');
 
-        // 🖼️ IMAGEN → sticker normal
-        if (!isVideo && !isGif) {
-            const sent = await msg.reply(media, undefined, {
-                sendMediaAsSticker: true,
-                stickerAuthor: 'AkR Bot',
-                stickerName: 'AkR'
-            });
+        let success = false;
 
-            await msg.react('🖼️');
-            return sent;
+        if (isVideo || isGif) {
+            success = await convertToWebp(inputPath, outputPath);
+        } else {
+            await convertImageToWebp(inputPath, outputPath);
+            success = true;
         }
 
-        const success = await convertToWebp(inputPath, outputPath);
-
         if (!success) {
-            throw new Error('No se pudo comprimir el sticker lo suficiente');
+            throw new Error('No se pudo procesar el sticker');
         }
 
         const webp = fs.readFileSync(outputPath, { encoding: 'base64' });
@@ -126,13 +130,12 @@ module.exports = async (msg) => {
 
         try {
             await msg.react('❎');
-        } catch { }
+        } catch {}
 
         throw error;
 
     } finally {
-        // 🧹 limpieza segura
-        try { if (inputPath && fs.existsSync(inputPath)) fs.unlinkSync(inputPath); } catch { }
-        try { if (fs.existsSync(outputPath)) fs.unlinkSync(outputPath); } catch { }
+        try { if (inputPath && fs.existsSync(inputPath)) fs.unlinkSync(inputPath); } catch {}
+        try { if (fs.existsSync(outputPath)) fs.unlinkSync(outputPath); } catch {}
     }
 };
