@@ -102,7 +102,7 @@ module.exports = async (msg) => {
 
     if (!args.length) {
       const errorMsg = await msg.reply(
-        'Usa:\n*!imbuement list*\n*!imbuement <nombre>*\n*!imbuement weapon/helmet/...*'
+        'Usa:\n*!imbuement list*\n*!imbuement <nombre>*\n*!imbuement type*'
       );
 
       await errorMsg.react('❎');
@@ -111,6 +111,32 @@ module.exports = async (msg) => {
     }
 
     const query = args.join(' ').toLowerCase();
+
+    // 🧩 MOSTRAR TIPOS
+    if (query === 'type') {
+      let text = '🧩 *Tipos de items disponibles:*\n\n';
+
+      text += '🪖 *Helmet*\n';
+      text += '🛡️ *Armor*\n';
+      text += '🥾 *Boots*\n';
+      text += '🛡️ *Shield*\n';
+      text += '📖 *Spellbook*\n\n';
+
+      text += '🔮 *Rod*\n';
+      text += '✨ *Wand*\n\n';
+
+      text += '🏹 *Bow*\n';
+      text += '🎯 *Crossbow*\n\n';
+
+      text += '🪓 *Axe*\n';
+      text += '⚔️ *Sword*\n';
+      text += '🔨 *Club*\n';
+      text += '👊 *Fist*\n\n';
+
+      text += '🎒 *Backpack*';
+
+      return await msg.reply(text);
+    }
 
     // 📜 LISTA
     if (query === 'list') {
@@ -129,7 +155,7 @@ module.exports = async (msg) => {
         .map(i => `• ${i.name} (${i.slots} slots)`)
         .join('\n');
 
-      let text = `🧩 *Imbuements para ${query.toUpperCase()}*\n\n`;
+      let text = `💠 *Imbuements de ${query.charAt(0).toUpperCase() + query.slice(1).toLowerCase()}*\n\n`;
       text += `${imbs || 'Ninguno'}\n\n`;
       text += `📦 *Items compatibles:*\n${items}`;
 
