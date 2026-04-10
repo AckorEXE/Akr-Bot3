@@ -120,9 +120,4 @@ module.exports = async (msg) => {
         try { if (fs.existsSync(inputPath)) fs.unlinkSync(inputPath); } catch { }
         try { if (fs.existsSync(outputPath)) fs.unlinkSync(outputPath); } catch { }
     }
-
-    .on('error', (err) => {
-        console.error('FFmpeg error real:', err);
-        reject(err);
-    });
 };
