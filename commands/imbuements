@@ -23,7 +23,7 @@ const imbuements = {
   "strike": { name: "🎯 Strike (Critical Hit)", materials: ["20 Protective Charm", "25 Sabretooth", "5 Vexclaw Talon"], compatible: ["Melee Weapons", "Bows and Crossbows", "Wand", "Rod"] },
 
   "vampirism": { name: "🩸 Vampirism (Life Leech)", materials: ["25 Vampire Teeth", "15 Bloody Pincers", "5 Piece of Dead Brain"], compatible: ["Melee Weapons", "Bows and Crossbows", "Armor"] },
-  "void": { name: "🔮 Void (Mana Leech)", materials: ["25 Rope Belt", "25 Silencer Claw", "5 Grimeleech Wings"], compatible: ["Melee Weapons", "Bows and Crossbows", "Helmet", "Special Wand"] },
+  "void": { name: "🔮 Void (Mana Leech)", materials: ["25 Rope Belt", "25 Silencer Claw", "5 Grimeleech Wings"], compatible: ["Melee Weapons", "Bows and Crossbows", "Helmet"] },
   "epiphany": { name: "✨ Epiphany (Magic Level)", materials: ["25 Elvish Talisman", "15 Broken Shamanic Staff", "15 Strand of Medusa Hair"], compatible: ["Helmet", "Rod", "Wand"] },
 
   "vibrancy": { name: "🪞 Vibrancy (Paralysis Deflection)", materials: ["20 Wereboar Hooves", "15 Crystallized Anger", "5 Quill"], compatible: ["Boots"] },
