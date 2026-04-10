@@ -23,7 +23,7 @@ const imbuements = {
   "strike": { name: "🎯 Strike (Critical Hit)", materials: ["20 Protective Charm", "25 Sabretooth", "5 Vexclaw Talon"], compatible: ["Melee Weapons", "Bows and Crossbows", "Wand", "Rod"] },
 
   "vampirism": { name: "🩸 Vampirism (Life Leech)", materials: ["25 Vampire Teeth", "15 Bloody Pincers", "5 Piece of Dead Brain"], compatible: ["Melee Weapons", "Bows and Crossbows", "Armor"] },
-  "void": { name: "🔮 Void (Mana Leech)", materials: ["25 Rope Belt", "25 Silencer Claw", "5 Grimeleech Wings"], compatible: ["Melee Weapons", "Bows and Crossbows", "Helmet"] },
+  "void": { name: "🔮 Void (Mana Leech)", materials: ["25 Rope Belt", "25 Silencer Claw", "5 Grimeleech Wings"], compatible: ["Melee Weapons", "Bows and Crossbows", "Helmet", "Special Wand"] },
   "epiphany": { name: "✨ Epiphany (Magic Level)", materials: ["25 Elvish Talisman", "15 Broken Shamanic Staff", "15 Strand of Medusa Hair"], compatible: ["Helmet", "Rod", "Wand"] },
 
   "vibrancy": { name: "🪞 Vibrancy (Paralysis Deflection)", materials: ["20 Wereboar Hooves", "15 Crystallized Anger", "5 Quill"], compatible: ["Boots"] },
@@ -180,12 +180,33 @@ module.exports = async (msg) => {
       }
 
       // obtener imbuements compatibles
-      const imbs = Object.values(imbuements)
-        .filter(i => {
+      const imbs = Object.entries(imbuements)
+        .filter(([key, i]) => {
           const compat = i.compatible.map(c => c.toLowerCase());
+
+          // 🔥 caso especial: imbuements de skill (weapon específicos)
+          const weaponSkillMap = {
+            fist: "punch",
+            club: "bash",
+            sword: "slash",
+            axe: "chop",
+            bow: "precision",
+            crossbow: "precision"
+          };
+
+          if (weaponTypes.includes(query)) {
+            const expectedSkill = weaponSkillMap[query];
+
+            // si es imbuement de tipo weapon, validar exacto
+            if (compat.includes("weapon")) {
+              return key === expectedSkill;
+            }
+          }
+
+          // 🧠 lógica normal
           return categories.some(cat => compat.includes(cat));
         })
-        .map(i => i.name)
+        .map(([_, i]) => i.name)
         .join('\n');
 
       // items
