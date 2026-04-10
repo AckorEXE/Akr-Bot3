@@ -1,5 +1,17 @@
 // 🧠 WEAPONT TYPE
 const weaponTypes = ["axe", "sword", "club", "bow", "crossbow", "wand", "rod", "fist"];
+const weaponCategoryMap = {
+  axe: "melee weapons",
+  sword: "melee weapons",
+  club: "melee weapons",
+  fist: "melee weapons",
+
+  bow: "bows and crossbows",
+  crossbow: "bows and crossbows",
+
+  wand: "wand",
+  rod: "rod"
+};
 
 // 🔥 IMBUEMENTS
 const imbuements = {
@@ -10,9 +22,9 @@ const imbuements = {
   "reap": { name: "💀 Reap (Death Damage)", materials: ["25 Pile of Grave Earth", "20 Demonic Skeletal Hand", "5 Petrified Scream"], compatible: ["Melee Weapons", "Bows and Crossbows"] },
   "strike": { name: "🎯 Strike (Critical Hit)", materials: ["20 Protective Charm", "25 Sabretooth", "5 Vexclaw Talon"], compatible: ["Melee Weapons", "Bows and Crossbows", "Wand", "Rod"] },
 
-  "vampirism": { name: "🩸 Vampirism (Life Leech)", materials: ["25 Vampire Teeth", "15 Bloody Pincers", "5 Piece of Dead Brain"], compatible: ["Weapon", "Armor"] },
-  "void": { name: "🔮 Void (Mana Leech)", materials: ["25 Rope Belt", "25 Silencer Claw", "5 Grimeleech Wings"], compatible: ["Weapon", "Helmet"] },
-  "epiphany": { name: "✨ Epiphany (Magic Level)", materials: ["25 Elvish Talisman", "15 Broken Shamanic Staff", "15 Strand of Medusa Hair"], compatible: ["Helmet", "Rod", "Wand"] },
+  "vampirism": { name: "🩸 Vampirism (Life Leech)", materials: ["25 Vampire Teeth", "15 Bloody Pincers", "5 Piece of Dead Brain"], compatible: ["Melee Weapons", "Bows and Crossbows", "Armor"] },
+  "void": { name: "🔮 Void (Mana Leech)", materials: ["25 Rope Belt", "25 Silencer Claw", "5 Grimeleech Wings"], compatible: ["Melee Weapons", "Bows and Crossbows", "Wand", "Rod"] },
+  "epiphany": { name: "✨ Epiphany (Magic Level)", materials: ["25 Elvish Talisman", "15 Broken Shamanic Staff", "15 Strand of Medusa Hair"], compatible: ["Bows and Crossbows", "Wand", "Rod"] },
 
   "vibrancy": { name: "🪞 Vibrancy (Paralysis Deflection)", materials: ["20 Wereboar Hooves", "15 Crystallized Anger", "5 Quill"], compatible: ["Boots"] },
   "swiftness": { name: "🪶 Swiftness (Walking Speed)", materials: ["15 Damselfly Wing", "25 Compass", "20 Waspoid Wing"], compatible: ["Boots"] },
@@ -153,63 +165,67 @@ module.exports = async (msg) => {
     }
 
     // 🧩 FILTRO POR TIPO
-    if (itemTypes[query]) {
+    let categories = [];
 
-      // detectar categoría real
-      let category = query;
-
-      if (weaponTypes.includes(query)) {
-        category = "weapon";
-      }
-
-      // obtener imbuements compatibles
-      const imbs = Object.values(imbuements)
-        .filter(i => i.compatible.map(c => c.toLowerCase()).includes(category))
-        .map(i => i.name)
-        .join('\n');
-
-      // items
-      const items = itemTypes[query]
-        .map(i => `• ${i.name} (${i.slots} slots)`)
-        .join('\n');
-
-      let text = `💠 *Lista de ${query.charAt(0).toUpperCase() + query.slice(1)} con imbuements*\n\n`;
-
-      text += `📜 *Imbuements compatibles:*\n`;
-      text += `${imbs || 'Ninguno'}\n\n`;
-
-      text += `📦 *Items:*\n${items}`;
-
-      return await msg.reply(text);
+    // detectar categorías correctas
+    if (weaponTypes.includes(query)) {
+      const mapped = weaponCategoryMap[query];
+      if (mapped) categories.push(mapped);
+    } else {
+      categories.push(query);
     }
+
+    // obtener imbuements compatibles
+    const imbs = Object.values(imbuements)
+      .filter(i => {
+        const compat = i.compatible.map(c => c.toLowerCase());
+        return categories.some(cat => compat.includes(cat));
+      })
+      .map(i => i.name)
+      .join('\n');
+
+    // items
+    const items = itemTypes[query]
+      .map(i => `• ${i.name} (${i.slots} slots)`)
+      .join('\n');
+
+    let text = `💠 *Lista de ${query.charAt(0).toUpperCase() + query.slice(1)} con imbuements*\n\n`;
+
+    text += `📜 *Imbuements compatibles:*\n`;
+    text += `${imbs || 'Ninguno'}\n\n`;
+
+    text += `📦 *Items:*\n${items}`;
+
+    return await msg.reply(text);
+  }
 
     const imb = imbuements[query];
 
-    if (!imb) {
-      const errorMsg = await msg.reply('Imbuement o tipo no encontrado.');
+  if (!imb) {
+    const errorMsg = await msg.reply('Imbuement o tipo no encontrado.');
 
-      await errorMsg.react('❎');
-      await msg.react('❎');
-      return null;
-    }
-
-    const [m1, m2, m3] = imb.materials;
-
-    let text = `*${imb.name}*\n\n`;
-    text += `1️⃣ *Basic:* ${m1}\n`;
-    text += `2️⃣ *Intricate:* ${m1}, ${m2}\n`;
-    text += `3️⃣ *Powerful:* ${m1}, ${m2}, ${m3}\n\n`;
-    text += `🧩 *Compatible con:* ${imb.compatible.join(', ')}`;
-
-    return await msg.reply(text);
-
-  } catch (error) {
-    console.error('Error en comando imbuement:', error);
-
-    try {
-      await msg.react('❎');
-    } catch { }
-
-    throw error;
+    await errorMsg.react('❎');
+    await msg.react('❎');
+    return null;
   }
+
+  const [m1, m2, m3] = imb.materials;
+
+  let text = `*${imb.name}*\n\n`;
+  text += `1️⃣ *Basic:* ${m1}\n`;
+  text += `2️⃣ *Intricate:* ${m1}, ${m2}\n`;
+  text += `3️⃣ *Powerful:* ${m1}, ${m2}, ${m3}\n\n`;
+  text += `🧩 *Compatible con:* ${imb.compatible.join(', ')}`;
+
+  return await msg.reply(text);
+
+} catch (error) {
+  console.error('Error en comando imbuement:', error);
+
+  try {
+    await msg.react('❎');
+  } catch { }
+
+  throw error;
+}
 };
