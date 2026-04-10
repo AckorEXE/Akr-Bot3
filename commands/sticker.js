@@ -8,7 +8,8 @@ ffmpeg.setFfmpegPath(ffmpegPath);
 
 module.exports = async (msg) => {
     const id = Date.now();
-    const inputPath = path.join(__dirname, `input_${id}`);
+    const ext = media.mimetype.split('/')[1];
+    const inputPath = path.join(__dirname, `input_${id}.${ext}`);
     const outputPath = path.join(__dirname, `output_${id}.webp`);
 
     try {
@@ -53,33 +54,40 @@ module.exports = async (msg) => {
             await msg.react('🖼️');
             return sent;
         }
-
         // 🎥 VIDEO / GIF → ANIMADO PRO
         await msg.react('⏳');
 
         await new Promise((resolve, reject) => {
             ffmpeg(inputPath)
                 .inputOptions([
-                    '-t 6' // ⏱️ máximo permitido por WhatsApp
+                    '-t 5' // ⚠️ mejor 5s para evitar errores
                 ])
                 .outputOptions([
                     '-vf',
-                    // 🔥 magia pro: escala + fps + optimización
-                    'scale=512:512:force_original_aspect_ratio=decrease,fps=12,pad=512:512:(ow-iw)/2:(oh-ih)/2:color=white',
-                    
-                    '-loop', '0',
-                    '-preset', 'picture',
-                    '-an',
-                    '-vsync', '0',
+                    // 🔥 FORMATO CORRECTO WHATSAPP
+                    'scale=512:512:force_original_aspect_ratio=decrease,' +
+                    'pad=512:512:(ow-iw)/2:(oh-ih)/2:color=0x00000000,' +
+                    'fps=10',
 
-                    // 🧠 optimización de peso
-                    '-qscale', '50'
+                    '-vcodec', 'libwebp',
+                    '-lossless', '0',
+                    '-compression_level', '6',
+                    '-q:v', '50',
+
+                    '-loop', '0',
+                    '-an',
+                    '-vsync', '0'
                 ])
                 .toFormat('webp')
                 .save(outputPath)
                 .on('end', resolve)
                 .on('error', reject);
         });
+        const stats = fs.statSync(outputPath);
+
+        if (stats.size > 1000000) { // 1MB límite seguro
+            throw new Error('Sticker demasiado pesado');
+        }
 
         const webp = fs.readFileSync(outputPath, { encoding: 'base64' });
 
@@ -103,13 +111,18 @@ module.exports = async (msg) => {
 
         try {
             await msg.react('❎');
-        } catch {}
+        } catch { }
 
         throw error;
 
     } finally {
         // 🧹 limpieza segura
-        try { if (fs.existsSync(inputPath)) fs.unlinkSync(inputPath); } catch {}
-        try { if (fs.existsSync(outputPath)) fs.unlinkSync(outputPath); } catch {}
+        try { if (fs.existsSync(inputPath)) fs.unlinkSync(inputPath); } catch { }
+        try { if (fs.existsSync(outputPath)) fs.unlinkSync(outputPath); } catch { }
     }
+
+    .on('error', (err) => {
+        console.error('FFmpeg error real:', err);
+        reject(err);
+    });
 };
