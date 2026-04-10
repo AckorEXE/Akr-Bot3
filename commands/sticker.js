@@ -12,7 +12,7 @@ module.exports = async (msg) => {
     const outputPath = path.join(__dirname, `output_${id}.webp`);
 
     try {
-        await msg.react('🔄');
+        await msg.react('⏳');
 
         let media = null;
 
@@ -94,7 +94,7 @@ module.exports = async (msg) => {
             stickerName: 'AkR'
         });
 
-        await msg.react('🎞️');
+        await msg.react('🖼️');
 
         return sent;
 
