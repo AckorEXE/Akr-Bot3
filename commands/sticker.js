@@ -6,7 +6,7 @@ const path = require('path');
 
 ffmpeg.setFfmpegPath(ffmpegPath);
 
-// 🔥 FUNCIÓN PRO: compresión automática
+// 🔥 FUNCIÓN PRO: compresión automática + recorte cuadrado
 async function convertToWebp(inputPath, outputPath) {
     let quality = 60;
 
@@ -16,9 +16,8 @@ async function convertToWebp(inputPath, outputPath) {
                 .inputOptions(['-t 5'])
                 .outputOptions([
                     '-vf',
-                    'scale=512:512:force_original_aspect_ratio=decrease,' +
-                    'pad=512:512:(ow-iw)/2:(oh-ih)/2:color=0x00000000,' +
-                    'fps=10',
+                    // 🔥 RECORTE AUTOMÁTICO 1:1 (CENTRO)
+                    "crop=min(iw\\,ih):min(iw\\,ih):(iw-min(iw\\,ih))/2:(ih-min(iw\\,ih))/2,scale=512:512,fps=10",
 
                     '-vcodec', 'libwebp',
                     '-lossless', '0',
@@ -42,7 +41,7 @@ async function convertToWebp(inputPath, outputPath) {
         console.log(`Intento calidad ${quality} → ${stats.size} bytes`);
 
         if (stats.size <= 1000000) {
-            return true; // ✅ OK
+            return true; // ✅ listo
         }
 
         quality -= 10; // 🔻 bajar calidad
@@ -92,7 +91,7 @@ module.exports = async (msg) => {
         const isVideo = media.mimetype.includes('video');
         const isGif = media.mimetype.includes('gif');
 
-        // 🖼️ IMAGEN → directo
+        // 🖼️ IMAGEN → sticker normal
         if (!isVideo && !isGif) {
             const sent = await msg.reply(media, undefined, {
                 sendMediaAsSticker: true,
@@ -103,9 +102,6 @@ module.exports = async (msg) => {
             await msg.react('🖼️');
             return sent;
         }
-
-        // 🎥 VIDEO / GIF → animado
-        await msg.react('⏳');
 
         const success = await convertToWebp(inputPath, outputPath);
 
@@ -122,6 +118,7 @@ module.exports = async (msg) => {
             stickerAuthor: 'AkR Bot',
             stickerName: 'AkR'
         });
+
         return sent;
 
     } catch (error) {
@@ -129,13 +126,13 @@ module.exports = async (msg) => {
 
         try {
             await msg.react('❎');
-        } catch {}
+        } catch { }
 
         throw error;
 
     } finally {
         // 🧹 limpieza segura
-        try { if (inputPath && fs.existsSync(inputPath)) fs.unlinkSync(inputPath); } catch {}
-        try { if (fs.existsSync(outputPath)) fs.unlinkSync(outputPath); } catch {}
+        try { if (inputPath && fs.existsSync(inputPath)) fs.unlinkSync(inputPath); } catch { }
+        try { if (fs.existsSync(outputPath)) fs.unlinkSync(outputPath); } catch { }
     }
 };
