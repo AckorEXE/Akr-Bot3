@@ -120,15 +120,15 @@ module.exports = async (msg) => {
       text += '🥾 Boots\n';
       text += '🛡️ Shield\n';
       text += '📖 Spellbook\n';
-      text += '🔮 Rod*\n';
-      text += '✨ Wand*\n';
+      text += '🔮 Rod\n';
+      text += '✨ Wand\n';
       text += '🏹 Bow\n';
       text += '🎯 Crossbow\n';
       text += '🪓 Axe\n';
       text += '⚔️ Sword\n';
       text += '🔨 Club\n';
       text += '👊 Fist\n';
-      text += '🎒 Backpack\n';
+      text += '🎒 Backpack\n\n';
       text += 'Ahora escoge uno de los tipos para ver los imbuements compatibles.\nEjemplo: *!imbuement helmet*';
 
       return await msg.reply(text);
