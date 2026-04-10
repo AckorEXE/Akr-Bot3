@@ -6,6 +6,51 @@ const path = require('path');
 
 ffmpeg.setFfmpegPath(ffmpegPath);
 
+// 🔥 FUNCIÓN PRO: compresión automática
+async function convertToWebp(inputPath, outputPath) {
+    let quality = 60;
+
+    while (quality >= 10) {
+        await new Promise((resolve, reject) => {
+            ffmpeg(inputPath)
+                .inputOptions(['-t 5'])
+                .outputOptions([
+                    '-vf',
+                    'scale=512:512:force_original_aspect_ratio=decrease,' +
+                    'pad=512:512:(ow-iw)/2:(oh-ih)/2:color=0x00000000,' +
+                    'fps=10',
+
+                    '-vcodec', 'libwebp',
+                    '-lossless', '0',
+                    '-compression_level', '6',
+                    `-q:v ${quality}`,
+
+                    '-loop', '0',
+                    '-an',
+                    '-vsync', '0'
+                ])
+                .toFormat('webp')
+                .save(outputPath)
+                .on('end', resolve)
+                .on('error', (err) => {
+                    console.error('FFmpeg error real:', err);
+                    reject(err);
+                });
+        });
+
+        const stats = fs.statSync(outputPath);
+        console.log(`Intento calidad ${quality} → ${stats.size} bytes`);
+
+        if (stats.size <= 1000000) {
+            return true; // ✅ OK
+        }
+
+        quality -= 10; // 🔻 bajar calidad
+    }
+
+    return false; // ❌ no se pudo comprimir suficiente
+}
+
 module.exports = async (msg) => {
     const id = Date.now();
 
@@ -36,11 +81,11 @@ module.exports = async (msg) => {
             return msg.reply('Envía o responde a una imagen, video o GIF.');
         }
 
-        // ✅ AHORA sí puedes usar media
+        // 📂 Extensión correcta
         const ext = media.mimetype.split('/')[1];
         inputPath = path.join(__dirname, `input_${id}.${ext}`);
 
-        // 📦 Guardar archivo
+        // 💾 Guardar archivo
         const buffer = Buffer.from(media.data, 'base64');
         fs.writeFileSync(inputPath, buffer);
 
@@ -59,40 +104,13 @@ module.exports = async (msg) => {
             return sent;
         }
 
-        // 🎥 VIDEO / GIF → ANIMADO
-        await msg.react('⏳');
+        // 🎥 VIDEO / GIF → animado
+        await msg.react('🔄');
 
-        await new Promise((resolve, reject) => {
-            ffmpeg(inputPath)
-                .inputOptions(['-t 5'])
-                .outputOptions([
-                    '-vf',
-                    'scale=512:512:force_original_aspect_ratio=decrease,' +
-                    'pad=512:512:(ow-iw)/2:(oh-ih)/2:color=0x00000000,' +
-                    'fps=10',
+        const success = await convertToWebp(inputPath, outputPath);
 
-                    '-vcodec', 'libwebp',
-                    '-lossless', '0',
-                    '-compression_level', '6',
-                    '-q:v', '50',
-
-                    '-loop', '0',
-                    '-an',
-                    '-vsync', '0'
-                ])
-                .toFormat('webp')
-                .save(outputPath)
-                .on('end', resolve)
-                .on('error', (err) => {
-                    console.error('FFmpeg error real:', err);
-                    reject(err);
-                });
-        });
-
-        // 📏 Validar peso
-        const stats = fs.statSync(outputPath);
-        if (stats.size > 1000000) {
-            throw new Error('Sticker demasiado pesado');
+        if (!success) {
+            throw new Error('No se pudo comprimir el sticker lo suficiente');
         }
 
         const webp = fs.readFileSync(outputPath, { encoding: 'base64' });
@@ -110,7 +128,7 @@ module.exports = async (msg) => {
         return sent;
 
     } catch (error) {
-        console.error('Error sticker PRO:', error);
+        console.error('Error sticker ULTRA:', error);
 
         try {
             await msg.react('❎');
