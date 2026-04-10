@@ -3,37 +3,34 @@ const weaponTypes = ["axe", "sword", "club", "bow", "crossbow", "wand", "rod", "
 
 // 🔥 IMBUEMENTS
 const imbuements = {
-  "scorch": { name: "🔥 Scorch (Fire Damage)", materials: ["25 Fiery Heart", "5 Green Dragon Scale", "5 Demon Horn"], compatible: ["Weapon"] },
-  "venom": { name: "🌱 Venom (Earth Damage)", materials: ["25 Swamp Grass", "20 Poisonous Slime", "2 Slime Heart"], compatible: ["Weapon"] },
-  "frost": { name: "❄️ Frost (Ice Damage)", materials: ["25 Frosty Heart", "10 Seacrest Hair", "5 Polar Bear Paw"], compatible: ["Weapon"] },
-  "electrify": { name: "⚡ Electrify (Energy Damage)", materials: ["25 Rorc Feather", "5 Peacock Feather Fan", "1 Energy Vein"], compatible: ["Weapon"] },
-  "reap": { name: "💀 Reap (Death Damage)", materials: ["25 Pile of Grave Earth", "20 Demonic Skeletal Hand", "5 Petrified Scream"], compatible: ["Weapon"] },
-  "strike": { name: "🎯 Strike (Critical Hit)", materials: ["20 Protective Charm", "25 Sabretooth", "5 Vexclaw Talon"], compatible: ["Weapon"] },
-
-  "void": { name: "🔮 Void (Mana Leech)", materials: ["25 Rope Belt", "25 Silencer Claw", "5 Grimeleech Wings"], compatible: ["Weapon", "Helmet"] },
-  "epiphany": { name: "✨ Epiphany (Magic Level)", materials: ["25 Elvish Talisman", "15 Broken Shamanic Staff", "15 Strand of Medusa Hair"], compatible: ["Helmet", "Rod", "Wand"] },
+  "scorch": { name: "🔥 Scorch (Fire Damage)", materials: ["25 Fiery Heart", "5 Green Dragon Scale", "5 Demon Horn"], compatible: ["Melee Weapons", "Bows and Crossbows"] },
+  "venom": { name: "🌱 Venom (Earth Damage)", materials: ["25 Swamp Grass", "20 Poisonous Slime", "2 Slime Heart"], compatible: ["Melee Weapons", "Bows and Crossbows"] },
+  "frost": { name: "❄️ Frost (Ice Damage)", materials: ["25 Frosty Heart", "10 Seacrest Hair", "5 Polar Bear Paw"], compatible: ["Melee Weapons", "Bows and Crossbows"] },
+  "electrify": { name: "⚡ Electrify (Energy Damage)", materials: ["25 Rorc Feather", "5 Peacock Feather Fan", "1 Energy Vein"], compatible: ["Melee Weapons", "Bows and Crossbows"] },
+  "reap": { name: "💀 Reap (Death Damage)", materials: ["25 Pile of Grave Earth", "20 Demonic Skeletal Hand", "5 Petrified Scream"], compatible: ["Melee Weapons", "Bows and Crossbows"] },
+  "strike": { name: "🎯 Strike (Critical Hit)", materials: ["20 Protective Charm", "25 Sabretooth", "5 Vexclaw Talon"], compatible: ["Melee Weapons", "Bows and Crossbows", "Wand", "Rod"] },
 
   "vampirism": { name: "🩸 Vampirism (Life Leech)", materials: ["25 Vampire Teeth", "15 Bloody Pincers", "5 Piece of Dead Brain"], compatible: ["Weapon", "Armor"] },
-
-  "lich shroud": { name: "💀 Lich Shroud (Death Protection)", materials: ["25 Flask of Embalming Fluid", "20 Gloom Wolf Fur", "5 Mystical Hourglass"], compatible: ["Armor", "Shield"] },
-
-  "blockade": { name: "🛡️ Blockade (Shielding)", materials: ["20 Piece of Scarab Shell", "25 Brimstone Shell", "25 Frazzle Skin"], compatible: ["Helmet", "Shield"] },
+  "void": { name: "🔮 Void (Mana Leech)", materials: ["25 Rope Belt", "25 Silencer Claw", "5 Grimeleech Wings"], compatible: ["Weapon", "Helmet"] },
+  "epiphany": { name: "✨ Epiphany (Magic Level)", materials: ["25 Elvish Talisman", "15 Broken Shamanic Staff", "15 Strand of Medusa Hair"], compatible: ["Helmet", "Rod", "Wand"] },
 
   "vibrancy": { name: "🪞 Vibrancy (Paralysis Deflection)", materials: ["20 Wereboar Hooves", "15 Crystallized Anger", "5 Quill"], compatible: ["Boots"] },
   "swiftness": { name: "🪶 Swiftness (Walking Speed)", materials: ["15 Damselfly Wing", "25 Compass", "20 Waspoid Wing"], compatible: ["Boots"] },
   "featherweight": { name: "🎒 Featherweight (Capacity)", materials: ["20 Fairy Wings", "10 Little Bowl of Myrrh", "5 Goosebump Leather"], compatible: ["Backpack"] },
 
+  "blockade": { name: "🛡️ Blockade (Shielding)", materials: ["20 Piece of Scarab Shell", "25 Brimstone Shell", "25 Frazzle Skin"], compatible: ["Helmet", "Shield", "Spellbook"] },
+  "lich shroud": { name: "💀 Lich Shroud (Death Protection)", materials: ["25 Flask of Embalming Fluid", "20 Gloom Wolf Fur", "5 Mystical Hourglass"], compatible: ["Armor", "Shield"] },
   "snake skin": { name: "🌱 Snake Skin (Earth Protection)", materials: ["25 Swampling Wood", "20 Snake Skin", "10 Brimstone Fangs"], compatible: ["Armor", "Shield", "Spellbook"] },
   "dragon hide": { name: "🔥 Dragon Hide (Fire Protection)", materials: ["20 Green Dragon Leather", "10 Blazing Bone", "5 Draken Sulphur"], compatible: ["Armor", "Shield", "Spellbook"] },
   "quara scale": { name: "❄️ Quara Scale (Ice Protection)", materials: ["25 Winter Wolf Fur", "10 Thick Fur", "10 Deepling Wart"], compatible: ["Armor", "Shield", "Spellbook"] },
   "cloud fabric": { name: "⚡ Cloud Fabric (Energy Protection)", materials: ["20 Wyvern Talisman", "15 Crawler Head Plating", "10 Wyrm Scale"], compatible: ["Armor", "Shield", "Spellbook"] },
   "demon presence": { name: "✝️ Demon Presence (Holy Protection)", materials: ["25 Cultish Robe", "25 Cultish Mask", "20 Hellspawn Tail"], compatible: ["Armor", "Shield", "Spellbook"] },
 
-  "punch": { name: "👊 Punch (Fist Fighting)", materials: ["25 Tarantula Egg", "20 Mantassin Tail", "15 Gold-Brocaded Cloth"], compatible: ["Weapon"] },
-  "bash": { name: "🔨 Bash (Club Fighting)", materials: ["20 Cyclops Toe", "15 Ogre Nose Ring", "10 Warmaster’s Wristguards"], compatible: ["Weapon"] },
-  "slash": { name: "🗡️ Slash (Sword Fighting)", materials: ["25 Lion’s Mane", "25 Mooh’tah Shell", "5 War Crystal"], compatible: ["Weapon"] },
-  "chop": { name: "🪓 Chop (Axe Fighting)", materials: ["20 Orc Tooth", "25 Battle Stone", "20 Moohtant Horn"], compatible: ["Weapon"] },
-  "precision": { name: "🏹 Precision (Distance Fighting)", materials: ["25 Elven Scouting Glass", "20 Elven Hoof", "10 Metal Spike"], compatible: ["Weapon"] },
+  "punch": { name: "👊 Punch (Fist Fighting)", materials: ["25 Tarantula Egg", "20 Mantassin Tail", "15 Gold-Brocaded Cloth"], compatible: ["Weapon", "Helmet"] },
+  "bash": { name: "🔨 Bash (Club Fighting)", materials: ["20 Cyclops Toe", "15 Ogre Nose Ring", "10 Warmaster’s Wristguards"], compatible: ["Weapon", "Helmet"] },
+  "slash": { name: "🗡️ Slash (Sword Fighting)", materials: ["25 Lion’s Mane", "25 Mooh’tah Shell", "5 War Crystal"], compatible: ["Weapon", "Helmet"] },
+  "chop": { name: "🪓 Chop (Axe Fighting)", materials: ["20 Orc Tooth", "25 Battle Stone", "20 Moohtant Horn"], compatible: ["Weapon", "Helmet"] },
+  "precision": { name: "🏹 Precision (Distance Fighting)", materials: ["25 Elven Scouting Glass", "20 Elven Hoof", "10 Metal Spike"], compatible: ["Weapon", "Helmet"] },
 };
 
 // 🧠 PARSER DE ITEMS (convierte "Demon Helmet 2" → {name, slots})
