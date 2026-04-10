@@ -151,7 +151,7 @@ module.exports = async (msg) => {
         .map(i => `• ${i.name} (${i.slots} slots)`)
         .join('\n');
 
-      let text = `💠 *Imbuements de ${query.charAt(0).toUpperCase() + query.slice(1).toLowerCase()}*\n\n${items}`;
+      let text = `💠 *${query.charAt(0).toUpperCase() + query.slice(1).toLowerCase()} con imbuements*\n\n${items}`;
       return await msg.reply(text);
     }
 
