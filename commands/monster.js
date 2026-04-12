@@ -179,11 +179,15 @@ function parseLoot(raw) {
     let count = null;
     let name = null;
 
-    if (parts.length === 3) {
+    // Detectar si parts[0] es un conteo (número, rango como "0-295", o solo número)
+    const isCount = /^\d+(-\d+)?$/.test(parts[0]);
+
+    if (isCount) {
       count = parts[0];
-      name = parts[1];
-    } else if (parts.length === 2) {
+      name = parts[1] || null;
+    } else {
       name = parts[0];
+      // parts[1] puede ser rareza como "rare", ignorar
     }
 
     if (name) {
