@@ -26,25 +26,23 @@ function isValidMonster(raw) {
   return /\|\s*hp\s*=/.test(raw) && /\|\s*exp\s*=/.test(raw);
 }
 
-// 💥 parse max damage (FORMATO NUEVO)
+// 💥 parse max damage
 function parseMaxDamage(raw) {
-  // 🔥 Caso 1: formato template {{Max Damage|...}}
   const match = raw.match(/\{\{Max Damage\|([^}]+)\}\}/i);
 
   const map = {
-    physical: '👊🏻',
-    fire: '🔥',
-    energy: '⚡',
-    earth: '🌱',
-    ice: '❄️',
-    death: '💀',
-    holy: '✨',
+    physical:  '👊🏻',
+    fire:      '🔥',
+    energy:    '⚡',
+    earth:     '🌱',
+    ice:       '❄️',
+    death:     '💀',
+    holy:      '✨',
     lifedrain: '🩸',
     manadrain: '🔮',
-    summons: '👹'
+    summons:   '👹'
   };
 
-  // ✅ Si es formato complejo
   if (match) {
     let total = 0;
     let parts = [];
@@ -61,40 +59,72 @@ function parseMaxDamage(raw) {
       }
     });
 
-    return {
-      total,
-      text: parts.join(', +')
-    };
+    return { total, text: parts.join(', +') };
   }
 
-  // 🔥 Caso 2: valor simple | maxdmg = 203
   const simple = getMulti(raw, ['maxdmg']);
-
   if (simple) {
     const val = parseInt(simple);
     if (!isNaN(val)) {
-      return {
-        total: val,
-        text: `${val} 👊🏻 physical` // asumimos físico
-      };
+      return { total: val, text: `${val} 👊🏻 physical` };
     }
   }
 
   return null;
 }
 
-// 🛡️ resistencias ORDENADAS + DEBILIDAD
+// 🌍 parse location — limpia wikitags [[...]] y {{...}}
+function parseLocation(raw) {
+  const val = getMulti(raw, ['location']);
+  if (!val) return null;
+
+  return val
+    .replace(/\[\[([^\]|]+\|)?([^\]]+)\]\]/g, '$2') // [[Link|Label]] → Label
+    .replace(/\{\{[^}]+\}\}/g, '')                   // {{Template}} → ''
+    .replace(/<br\s*\/?>/gi, ', ')                    // <br> → ', '
+    .replace(/\s*,\s*/g, ', ')
+    .trim();
+}
+
+// ⚔️ parse usedelements — añade emojis
+function parseUsedElements(raw) {
+  const val = getMulti(raw, ['usedelements']);
+  if (!val) return null;
+
+  const emojiMap = {
+    physical: '👊🏻',
+    energy:   '⚡',
+    fire:     '🔥',
+    ice:      '❄️',
+    earth:    '🌱',
+    death:    '💀',
+    holy:     '✨',
+  };
+
+  // Formato: "Earth > Physical > Holy"  →  "🌱 Earth > 👊🏻 Physical > ✨ Holy"
+  return val
+    .split('>')
+    .map(e => {
+      const elem = e.trim();
+      const key = elem.toLowerCase();
+      const emoji = emojiMap[key] || '❔';
+      return `${emoji} ${elem}`;
+    })
+    .join(' > ');
+}
+
+// 🛡️ resistencias ordenadas + debilidades
 function parseResistances(raw) {
   const map = {
     physicalDmgMod: { emoji: '👊🏻', name: 'physical' },
-    earthDmgMod: { emoji: '🌱', name: 'earth' },
-    fireDmgMod: { emoji: '🔥', name: 'fire' },
-    deathDmgMod: { emoji: '💀', name: 'death' },
-    energyDmgMod: { emoji: '⚡', name: 'energy' },
-    holyDmgMod: { emoji: '✝️', name: 'holy' },
-    iceDmgMod: { emoji: '❄️', name: 'ice' },
-    hpDrainDmgMod: { emoji: '🩸', name: 'lifedrain' },
-    drownDmgMod: { emoji: '🌊', name: 'drown' },
+    earthDmgMod:    { emoji: '🌱', name: 'earth' },
+    fireDmgMod:     { emoji: '🔥', name: 'fire' },
+    deathDmgMod:    { emoji: '💀', name: 'death' },
+    energyDmgMod:   { emoji: '⚡', name: 'energy' },
+    holyDmgMod:     { emoji: '✝️', name: 'holy' },
+    iceDmgMod:      { emoji: '❄️', name: 'ice' },
+    hpDrainDmgMod:  { emoji: '🩸', name: 'lifedrain' },
+    drownDmgMod:    { emoji: '🌊', name: 'drown' },
   };
 
   let result = [];
@@ -105,68 +135,43 @@ function parseResistances(raw) {
       const num = parseInt(val.replace('%', '').trim());
       if (!isNaN(num)) {
         let text = `${map[key].emoji} ${map[key].name}: ${val}`;
-
-        // 🔥 debilidad (>100%)
-        if (num > 100) {
-          text = `*${text}*`;
-        }
-
-        result.push({
-          value: num,
-          text
-        });
+        if (num > 100) text = `*${text}*`;
+        result.push({ value: num, text });
       }
     }
   }
 
-  // ordenar DESC
   result.sort((a, b) => b.value - a.value);
-
   return result.length ? result.map(x => x.text).join('\n') : null;
 }
 
-// 🎯 charm points
+// 🎯 charm points — tabla CORRECTA
+// Harmless=1  Trivial=5  Easy=15  Medium=25  Hard=50
 function calculateCharmPoints(level) {
   const table = {
-    Trivial: 1,
-    Easy: 5,
-    Medium: 15,
-    Hard: 50
+    Harmless: 1,
+    Trivial:  5,
+    Easy:     15,
+    Medium:   25,
+    Hard:     50,
   };
-  return table[level] || null;
+  return table[level?.trim()] || null;
 }
 
-// 📊 kills unlock
-function normalizeOccurrence(occ) {
-  if (!occ) return null;
-
-  const o = occ.toLowerCase();
-
-  if (o.includes('very common')) return 'Common';
-  if (o.includes('common')) return 'Common';
-  if (o.includes('uncommon')) return 'Uncommon';
-  if (o.includes('rare')) return 'Rare';
-
-  return null;
-}
-
-function calculateKills(level, occurrence) {
+// 📊 kills para desbloquear (etapa final) — tabla CORRECTA
+// Harmless=25  Trivial=250  Easy=500  Medium=1000  Hard=2500
+function calculateKills(level) {
   const table = {
-    Trivial: { Common: 25, Uncommon: 5, Rare: 1 },
-    Easy: { Common: 250, Uncommon: 50, Rare: 10 },
-    Medium: { Common: 1000, Uncommon: 250, Rare: 50 },
-    Hard: { Common: 2500, Uncommon: 500, Rare: 100 }
+    Harmless: 25,
+    Trivial:  250,
+    Easy:     500,
+    Medium:   1000,
+    Hard:     2500,
   };
-
-  if (!level || !occurrence) return null;
-
-  const lvl = level.trim();
-  const occ = normalizeOccurrence(occurrence);
-
-  return table[lvl]?.[occ] || null;
+  return table[level?.trim()] || null;
 }
 
-// 🎁 loot inline limpio
+// 🎁 loot inline
 function parseLoot(raw) {
   const matches = [...raw.matchAll(/\{\{Loot Item\|([^}]+)\}\}/gi)];
   if (!matches.length) return null;
@@ -175,24 +180,18 @@ function parseLoot(raw) {
 
   matches.forEach(m => {
     const parts = m[1].split('|').map(x => x.trim());
-
     let count = null;
-    let name = null;
+    let name  = null;
 
-    // Detectar si parts[0] es un conteo (número, rango como "0-295", o solo número)
     const isCount = /^\d+(-\d+)?$/.test(parts[0]);
-
     if (isCount) {
       count = parts[0];
-      name = parts[1] || null;
+      name  = parts[1] || null;
     } else {
       name = parts[0];
-      // parts[1] puede ser rareza como "rare", ignorar
     }
 
-    if (name) {
-      result.push(`${name}${count ? ` (${count})` : ''}`);
-    }
+    if (name) result.push(`${name}${count ? ` (${count})` : ''}`);
   });
 
   return result.join(', ');
@@ -200,20 +199,20 @@ function parseLoot(raw) {
 
 // 🧠 parse monster
 function parseMonster(raw) {
-  const dmg = parseMaxDamage(raw);
-
+  const dmg          = parseMaxDamage(raw);
   const bestiarylevel = getMulti(raw, ['bestiarylevel']);
-  const occurrence = getMulti(raw, ['occurrence']);
 
   return {
-    name: getMulti(raw, ['name']),
-    hp: getMulti(raw, ['hp']),
-    exp: getMulti(raw, ['exp']),
-    maxdmg: dmg,
-    resist: parseResistances(raw),
-    charmPoints: calculateCharmPoints(bestiarylevel),
-    kills: calculateKills(bestiarylevel, occurrence),
-    loot: parseLoot(raw)
+    name:         getMulti(raw, ['name']),
+    hp:           getMulti(raw, ['hp']),
+    exp:          getMulti(raw, ['exp']),
+    maxdmg:       dmg,
+    usedelements: parseUsedElements(raw),
+    resist:       parseResistances(raw),
+    location:     parseLocation(raw),
+    charmPoints:  calculateCharmPoints(bestiarylevel),
+    kills:        calculateKills(bestiarylevel),
+    loot:         parseLoot(raw),
   };
 }
 
@@ -221,7 +220,6 @@ module.exports = async (msg) => {
   try {
     const args = msg.body.split(' ').slice(1);
 
-    // ❌ Uso incorrecto
     if (args.length === 0) {
       const errorMsg = await msg.reply(
         'Uso correcto: *!monster <nombre>*\nEjemplo: *!monster demon*'
@@ -247,7 +245,7 @@ module.exports = async (msg) => {
       return null;
     }
 
-    let title = null;
+    let title   = null;
     let content = null;
 
     for (const r of results) {
@@ -259,14 +257,12 @@ module.exports = async (msg) => {
         );
 
         const page = Object.values(rawRes.data.query.pages)[0];
-        const raw = page?.revisions?.[0]?.['*'];
+        const raw  = page?.revisions?.[0]?.['*'];
 
-        if (!raw) continue;
-        if (!isValidMonster(raw)) continue;
+        if (!raw || !isValidMonster(raw)) continue;
 
-        title = formatted;
+        title   = formatted;
         content = raw;
-
         console.log('✅ Monster encontrado:', title);
         break;
 
@@ -286,14 +282,22 @@ module.exports = async (msg) => {
 
     let text = `👾 *${s.name || query}*\n\n`;
 
-    if (s.hp) text += `❤️ *Vida:* ${s.hp}\n`;
+    if (s.hp)  text += `❤️ *Vida:* ${s.hp}\n`;
     if (s.exp) text += `✨ *Experiencia:* ${s.exp}\n`;
 
-    if (s.maxdmg)
-      text += `\n💥 *Daño máximo:* ${s.maxdmg.total}\n(${s.maxdmg.text})\n`;
+    if (s.maxdmg) {
+      text += `\n💥 *Daño máximo:* ${s.maxdmg.total}\n`;
+      text += `(${s.maxdmg.text})\n`;
+    }
+
+    if (s.usedelements)
+      text += `⚔️ *Elementos usados:* ${s.usedelements}\n`;
 
     if (s.resist)
       text += `\n🛡️ *Debilidades:*\n${s.resist}\n`;
+
+    if (s.location)
+      text += `\n📍 *Ubicación:* ${s.location}\n`;
 
     if (s.charmPoints)
       text += `\n🎯 *Puntos de charms:* ${s.charmPoints}\n`;
@@ -310,11 +314,11 @@ module.exports = async (msg) => {
 
   } catch (err) {
     console.log('❌ ERROR:', err.message);
-
-    const errorMsg = await msg.reply('Error.');
-    await errorMsg.react('❎');
-    await msg.react('❎');
-
+    try {
+      const errorMsg = await msg.reply('Error.');
+      await errorMsg.react('❎');
+      await msg.react('❎');
+    } catch {}
     return null;
   }
 };
