@@ -28,8 +28,6 @@ function isValidMonster(raw) {
 
 // 💥 parse max damage
 function parseMaxDamage(raw) {
-  const match = raw.match(/\{\{Max Damage\|([^}]+)\}\}/i);
-
   const map = {
     physical:  '👊🏻',
     fire:      '🔥',
@@ -43,6 +41,8 @@ function parseMaxDamage(raw) {
     summons:   '👹'
   };
 
+  // ✅ Caso 1: {{Max Damage|earth=500|physical=300}}
+  const match = raw.match(/\{\{Max Damage\|([^}]+)\}\}/i);
   if (match) {
     let total = 0;
     let parts = [];
@@ -53,22 +53,39 @@ function parseMaxDamage(raw) {
         const val = parseInt(value.trim());
         if (!isNaN(val)) {
           total += val;
-          const emoji = map[type.trim()] || '❔';
+          const emoji = map[type.trim().toLowerCase()] || '❔';
           parts.push(`${val} ${emoji} ${type.trim()}`);
         }
       }
     });
 
-    return { total, text: parts.join(', +') };
+    if (parts.length) return { total, text: parts.join(', +') };
   }
 
-  const simple = getMulti(raw, ['maxdmg']);
-  if (simple) {
-    const val = parseInt(simple);
-    if (!isNaN(val)) {
-      return { total: val, text: `${val} 👊🏻 physical` };
+  // ✅ Caso 2: campos separados | maxdmg = 500 earth  o  | maxdmg = 500
+  // Captura maxdmg, maxdmg2, maxdmg3, etc.
+  const fieldRegex = /\|\s*maxdmg\d*\s*=\s*([^\n|]+)/gi;
+  let total = 0;
+  let parts = [];
+  let m;
+
+  while ((m = fieldRegex.exec(raw)) !== null) {
+    const rawVal = m[1].trim();
+
+    // Puede ser "500 earth", "300 physical", o solo "500"
+    const numMatch = rawVal.match(/^(\d+)\s*(\w+)?/);
+    if (numMatch) {
+      const val = parseInt(numMatch[1]);
+      const typeRaw = (numMatch[2] || 'physical').toLowerCase();
+      if (!isNaN(val) && val > 0) {
+        total += val;
+        const emoji = map[typeRaw] || '❔';
+        parts.push(`${val} ${emoji} ${typeRaw}`);
+      }
     }
   }
+
+  if (parts.length) return { total, text: parts.join(', +') };
 
   return null;
 }
@@ -101,7 +118,6 @@ function parseUsedElements(raw) {
     holy:     '✨',
   };
 
-  // Formato: "Earth > Physical > Holy"  →  "🌱 Earth > 👊🏻 Physical > ✨ Holy"
   return val
     .split('>')
     .map(e => {
@@ -146,7 +162,6 @@ function parseResistances(raw) {
 }
 
 // 🎯 charm points — tabla CORRECTA
-// Harmless=1  Trivial=5  Easy=15  Medium=25  Hard=50
 function calculateCharmPoints(level) {
   const table = {
     Harmless: 1,
@@ -159,7 +174,6 @@ function calculateCharmPoints(level) {
 }
 
 // 📊 kills para desbloquear (etapa final) — tabla CORRECTA
-// Harmless=25  Trivial=250  Easy=500  Medium=1000  Hard=2500
 function calculateKills(level) {
   const table = {
     Harmless: 25,
@@ -199,7 +213,7 @@ function parseLoot(raw) {
 
 // 🧠 parse monster
 function parseMonster(raw) {
-  const dmg          = parseMaxDamage(raw);
+  const dmg           = parseMaxDamage(raw);
   const bestiarylevel = getMulti(raw, ['bestiarylevel']);
 
   return {
