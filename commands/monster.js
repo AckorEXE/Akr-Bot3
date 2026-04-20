@@ -335,4 +335,7 @@ module.exports = async (msg) => {
     } catch {}
     return null;
   }
+
+  const dmgSection = raw.match(/maxdmg[^\n]*/gi);
+console.log('🔍 maxdmg fields:', dmgSection);
 };
