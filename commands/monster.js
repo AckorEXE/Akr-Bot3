@@ -29,16 +29,16 @@ function isValidMonster(raw) {
 // 💥 parse max damage
 function parseMaxDamage(raw) {
   const map = {
-    physical: '👊🏻',
-    fire: '🔥',
-    energy: '⚡',
-    earth: '🌱',
-    ice: '❄️',
-    death: '💀',
-    holy: '✨',
+    physical:  '👊🏻',
+    fire:      '🔥',
+    energy:    '⚡',
+    earth:     '🌱',
+    ice:       '❄️',
+    death:     '💀',
+    holy:      '✨',
     lifedrain: '🩸',
     manadrain: '🔮',
-    summons: '👹'
+    summons:   '👹'
   };
 
   // ✅ Caso 1: uno o múltiples {{Max Damage|...}} en la misma línea
@@ -51,7 +51,7 @@ function parseMaxDamage(raw) {
       match[1].split('|').forEach(part => {
         const [type, value] = part.split('=');
         if (type && value) {
-          const val = parseInt(value.trim());
+          const val = parseInt(value.trim().replace(/,/g, '').replace(/\+/g, ''));
           if (!isNaN(val)) {
             total += val;
             const emoji = map[type.trim().toLowerCase()] || '❔';
@@ -64,7 +64,7 @@ function parseMaxDamage(raw) {
     if (parts.length) return { total, text: parts.join(', +') };
   }
 
-  // ✅ Caso 2: campos separados | maxdmg = 500 earth  o  | maxdmg2 = 300
+  // ✅ Caso 2: campo simple | maxdmg = 1,000+  o  | maxdmg = 500 earth
   const fieldRegex = /\|\s*maxdmg\d*\s*=\s*([^\n|]+)/gi;
   let total = 0;
   let parts = [];
@@ -72,7 +72,8 @@ function parseMaxDamage(raw) {
 
   while ((m = fieldRegex.exec(raw)) !== null) {
     const rawVal = m[1].trim();
-    const numMatch = rawVal.match(/^(\d+)\s*(\w+)?/);
+    const cleaned = rawVal.replace(/,/g, '').replace(/\+/g, '').trim();
+    const numMatch = cleaned.match(/^(\d+)\s*(\w+)?/);
     if (numMatch) {
       const val = parseInt(numMatch[1]);
       const typeRaw = (numMatch[2] || 'physical').toLowerCase();
@@ -95,9 +96,9 @@ function parseLocation(raw) {
   if (!val) return null;
 
   return val
-    .replace(/\[\[([^\]|]+\|)?([^\]]+)\]\]/g, '$2') // [[Link|Label]] → Label
-    .replace(/\{\{[^}]+\}\}/g, '')                   // {{Template}} → ''
-    .replace(/<br\s*\/?>/gi, ', ')                    // <br> → ', '
+    .replace(/\[\[([^\]|]+\|)?([^\]]+)\]\]/g, '$2')
+    .replace(/\{\{[^}]+\}\}/g, '')
+    .replace(/<br\s*\/?>/gi, ', ')
     .replace(/\s*,\s*/g, ', ')
     .trim();
 }
@@ -109,12 +110,12 @@ function parseUsedElements(raw) {
 
   const emojiMap = {
     physical: '👊🏻',
-    energy: '⚡',
-    fire: '🔥',
-    ice: '❄️',
-    earth: '🌱',
-    death: '💀',
-    holy: '✨',
+    energy:   '⚡',
+    fire:     '🔥',
+    ice:      '❄️',
+    earth:    '🌱',
+    death:    '💀',
+    holy:     '✨',
   };
 
   return val
@@ -132,14 +133,14 @@ function parseUsedElements(raw) {
 function parseResistances(raw) {
   const map = {
     physicalDmgMod: { emoji: '👊🏻', name: 'physical' },
-    earthDmgMod: { emoji: '🌱', name: 'earth' },
-    fireDmgMod: { emoji: '🔥', name: 'fire' },
-    deathDmgMod: { emoji: '💀', name: 'death' },
-    energyDmgMod: { emoji: '⚡', name: 'energy' },
-    holyDmgMod: { emoji: '✝️', name: 'holy' },
-    iceDmgMod: { emoji: '❄️', name: 'ice' },
-    hpDrainDmgMod: { emoji: '🩸', name: 'lifedrain' },
-    drownDmgMod: { emoji: '🌊', name: 'drown' },
+    earthDmgMod:    { emoji: '🌱', name: 'earth' },
+    fireDmgMod:     { emoji: '🔥', name: 'fire' },
+    deathDmgMod:    { emoji: '💀', name: 'death' },
+    energyDmgMod:   { emoji: '⚡', name: 'energy' },
+    holyDmgMod:     { emoji: '✝️', name: 'holy' },
+    iceDmgMod:      { emoji: '❄️', name: 'ice' },
+    hpDrainDmgMod:  { emoji: '🩸', name: 'lifedrain' },
+    drownDmgMod:    { emoji: '🌊', name: 'drown' },
   };
 
   let result = [];
@@ -160,26 +161,26 @@ function parseResistances(raw) {
   return result.length ? result.map(x => x.text).join('\n') : null;
 }
 
-// 🎯 charm points — tabla CORRECTA
+// 🎯 charm points
 function calculateCharmPoints(level) {
   const table = {
     Harmless: 1,
-    Trivial: 5,
-    Easy: 15,
-    Medium: 25,
-    Hard: 50,
+    Trivial:  5,
+    Easy:     15,
+    Medium:   25,
+    Hard:     50,
   };
   return table[level?.trim()] || null;
 }
 
-// 📊 kills para desbloquear (etapa final) — tabla CORRECTA
+// 📊 kills para desbloquear
 function calculateKills(level) {
   const table = {
     Harmless: 25,
-    Trivial: 250,
-    Easy: 500,
-    Medium: 1000,
-    Hard: 2500,
+    Trivial:  250,
+    Easy:     500,
+    Medium:   1000,
+    Hard:     2500,
   };
   return table[level?.trim()] || null;
 }
@@ -194,12 +195,12 @@ function parseLoot(raw) {
   matches.forEach(m => {
     const parts = m[1].split('|').map(x => x.trim());
     let count = null;
-    let name = null;
+    let name  = null;
 
     const isCount = /^\d+(-\d+)?$/.test(parts[0]);
     if (isCount) {
       count = parts[0];
-      name = parts[1] || null;
+      name  = parts[1] || null;
     } else {
       name = parts[0];
     }
@@ -212,20 +213,20 @@ function parseLoot(raw) {
 
 // 🧠 parse monster
 function parseMonster(raw) {
-  const dmg = parseMaxDamage(raw);
+  const dmg           = parseMaxDamage(raw);
   const bestiarylevel = getMulti(raw, ['bestiarylevel']);
 
   return {
-    name: getMulti(raw, ['name']),
-    hp: getMulti(raw, ['hp']),
-    exp: getMulti(raw, ['exp']),
-    maxdmg: dmg,
+    name:         getMulti(raw, ['name']),
+    hp:           getMulti(raw, ['hp']),
+    exp:          getMulti(raw, ['exp']),
+    maxdmg:       dmg,
     usedelements: parseUsedElements(raw),
-    resist: parseResistances(raw),
-    location: parseLocation(raw),
-    charmPoints: calculateCharmPoints(bestiarylevel),
-    kills: calculateKills(bestiarylevel),
-    loot: parseLoot(raw),
+    resist:       parseResistances(raw),
+    location:     parseLocation(raw),
+    charmPoints:  calculateCharmPoints(bestiarylevel),
+    kills:        calculateKills(bestiarylevel),
+    loot:         parseLoot(raw),
   };
 }
 
@@ -258,7 +259,7 @@ module.exports = async (msg) => {
       return null;
     }
 
-    let title = null;
+    let title   = null;
     let content = null;
 
     for (const r of results) {
@@ -270,11 +271,11 @@ module.exports = async (msg) => {
         );
 
         const page = Object.values(rawRes.data.query.pages)[0];
-        const raw = page?.revisions?.[0]?.['*'];
+        const raw  = page?.revisions?.[0]?.['*'];
 
         if (!raw || !isValidMonster(raw)) continue;
 
-        title = formatted;
+        title   = formatted;
         content = raw;
         console.log('✅ Monster encontrado:', title);
         break;
@@ -295,7 +296,7 @@ module.exports = async (msg) => {
 
     let text = `👾 *${s.name || query}*\n\n`;
 
-    if (s.hp) text += `❤️ *Vida:* ${s.hp}\n`;
+    if (s.hp)  text += `❤️ *Vida:* ${s.hp}\n`;
     if (s.exp) text += `✨ *Experiencia:* ${s.exp}\n`;
 
     if (s.maxdmg) {
@@ -331,7 +332,7 @@ module.exports = async (msg) => {
       const errorMsg = await msg.reply('Error.');
       await errorMsg.react('❎');
       await msg.react('❎');
-    } catch { }
+    } catch {}
     return null;
   }
 };
