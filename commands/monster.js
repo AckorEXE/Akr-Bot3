@@ -1,6 +1,5 @@
 const axios = require('axios');
 
-// 🧠 limpiar valores inválidos
 function cleanValue(val) {
   if (!val) return null;
   val = val.trim();
@@ -8,7 +7,6 @@ function cleanValue(val) {
   return val;
 }
 
-// 🔧 buscar múltiples keys
 function getMulti(raw, keys) {
   for (const key of keys) {
     const regex = new RegExp(`\\|\\s*${key}\\s*=\\s*([^\\n]+)`, 'i');
@@ -21,51 +19,28 @@ function getMulti(raw, keys) {
   return null;
 }
 
-// 🧠 VALIDAR si es MONSTER
 function isValidMonster(raw) {
   return /\|\s*hp\s*=/.test(raw) && /\|\s*exp\s*=/.test(raw);
 }
 
-// 🎯 validar que el título coincida con el query
-function nameMatchesQuery(title, query) {
-  const normalize = str => str.toLowerCase()
-    .replace(/_/g, ' ')
-    .replace(/[^a-z0-9 ]/g, '')
-    .trim();
-
-  const t = normalize(title);
-  const q = normalize(query);
-
-  // coincidencia exacta o el título contiene el query
-  if (t === q || t.includes(q) || q.includes(t)) return true;
-
-  // coincidencia por palabras: al menos la mitad deben estar presentes
-  const queryWords = q.split(' ').filter(w => w.length > 2);
-  const matches = queryWords.filter(w => t.includes(w));
-  return matches.length >= Math.ceil(queryWords.length / 2);
-}
-
-// 💥 parse max damage
 function parseMaxDamage(raw) {
   const map = {
-    physical: '👊🏻',
-    fire: '🔥',
-    energy: '⚡',
-    earth: '🌱',
-    ice: '❄️',
-    death: '💀',
-    holy: '✨',
+    physical:  '👊🏻',
+    fire:      '🔥',
+    energy:    '⚡',
+    earth:     '🌱',
+    ice:       '❄️',
+    death:     '💀',
+    holy:      '✨',
     lifedrain: '🩸',
     manadrain: '🔮',
-    summons: '👹'
+    summons:   '👹'
   };
 
-  // ✅ Caso 1: uno o múltiples {{Max Damage|...}} en la misma línea
   const matches = [...raw.matchAll(/\{\{Max Damage\|([^}]+)\}\}/gi)];
   if (matches.length) {
     let total = 0;
     let parts = [];
-
     matches.forEach(match => {
       match[1].split('|').forEach(part => {
         const [type, value] = part.split('=');
@@ -79,16 +54,13 @@ function parseMaxDamage(raw) {
         }
       });
     });
-
     if (parts.length) return { total, text: parts.join(', +') };
   }
 
-  // ✅ Caso 2: campo simple | maxdmg = 1,000+  o  | maxdmg = 500 earth
   const fieldRegex = /\|\s*maxdmg\d*\s*=\s*([^\n|]+)/gi;
   let total = 0;
   let parts = [];
   let m;
-
   while ((m = fieldRegex.exec(raw)) !== null) {
     const rawVal = m[1].trim();
     const cleaned = rawVal.replace(/,/g, '').replace(/\+/g, '').trim();
@@ -103,17 +75,14 @@ function parseMaxDamage(raw) {
       }
     }
   }
-
   if (parts.length) return { total, text: parts.join(', +') };
 
   return null;
 }
 
-// 🌍 parse location — limpia wikitags [[...]] y {{...}}
 function parseLocation(raw) {
   const val = getMulti(raw, ['location']);
   if (!val) return null;
-
   return val
     .replace(/\[\[([^\]|]+\|)?([^\]]+)\]\]/g, '$2')
     .replace(/\{\{[^}]+\}\}/g, '')
@@ -122,21 +91,18 @@ function parseLocation(raw) {
     .trim();
 }
 
-// ⚔️ parse usedelements — añade emojis
 function parseUsedElements(raw) {
   const val = getMulti(raw, ['usedelements']);
   if (!val) return null;
-
   const emojiMap = {
     physical: '👊🏻',
-    energy: '⚡',
-    fire: '🔥',
-    ice: '❄️',
-    earth: '🌱',
-    death: '💀',
-    holy: '✨',
+    energy:   '⚡',
+    fire:     '🔥',
+    ice:      '❄️',
+    earth:    '🌱',
+    death:    '💀',
+    holy:     '✨',
   };
-
   return val
     .split('>')
     .map(e => {
@@ -148,22 +114,19 @@ function parseUsedElements(raw) {
     .join(' > ');
 }
 
-// 🛡️ resistencias ordenadas + debilidades
 function parseResistances(raw) {
   const map = {
     physicalDmgMod: { emoji: '👊🏻', name: 'physical' },
-    earthDmgMod: { emoji: '🌱', name: 'earth' },
-    fireDmgMod: { emoji: '🔥', name: 'fire' },
-    deathDmgMod: { emoji: '💀', name: 'death' },
-    energyDmgMod: { emoji: '⚡', name: 'energy' },
-    holyDmgMod: { emoji: '✝️', name: 'holy' },
-    iceDmgMod: { emoji: '❄️', name: 'ice' },
-    hpDrainDmgMod: { emoji: '🩸', name: 'lifedrain' },
-    drownDmgMod: { emoji: '🌊', name: 'drown' },
+    earthDmgMod:    { emoji: '🌱', name: 'earth' },
+    fireDmgMod:     { emoji: '🔥', name: 'fire' },
+    deathDmgMod:    { emoji: '💀', name: 'death' },
+    energyDmgMod:   { emoji: '⚡', name: 'energy' },
+    holyDmgMod:     { emoji: '✝️', name: 'holy' },
+    iceDmgMod:      { emoji: '❄️', name: 'ice' },
+    hpDrainDmgMod:  { emoji: '🩸', name: 'lifedrain' },
+    drownDmgMod:    { emoji: '🌊', name: 'drown' },
   };
-
   let result = [];
-
   for (const key in map) {
     const val = getMulti(raw, [key]);
     if (val) {
@@ -175,78 +138,101 @@ function parseResistances(raw) {
       }
     }
   }
-
   result.sort((a, b) => b.value - a.value);
   return result.length ? result.map(x => x.text).join('\n') : null;
 }
 
-// 🎯 charm points
 function calculateCharmPoints(level) {
   const table = {
     Harmless: 1,
-    Trivial: 5,
-    Easy: 15,
-    Medium: 25,
-    Hard: 50,
+    Trivial:  5,
+    Easy:     15,
+    Medium:   25,
+    Hard:     50,
   };
   return table[level?.trim()] || null;
 }
 
-// 📊 kills para desbloquear
 function calculateKills(level) {
   const table = {
     Harmless: 25,
-    Trivial: 250,
-    Easy: 500,
-    Medium: 1000,
-    Hard: 2500,
+    Trivial:  250,
+    Easy:     500,
+    Medium:   1000,
+    Hard:     2500,
   };
   return table[level?.trim()] || null;
 }
 
-// 🎁 loot inline
 function parseLoot(raw) {
   const matches = [...raw.matchAll(/\{\{Loot Item\|([^}]+)\}\}/gi)];
   if (!matches.length) return null;
-
   let result = [];
-
   matches.forEach(m => {
     const parts = m[1].split('|').map(x => x.trim());
     let count = null;
-    let name = null;
-
+    let name  = null;
     const isCount = /^\d+(-\d+)?$/.test(parts[0]);
     if (isCount) {
       count = parts[0];
-      name = parts[1] || null;
+      name  = parts[1] || null;
     } else {
       name = parts[0];
     }
-
     if (name) result.push(`${name}${count ? ` (${count})` : ''}`);
   });
-
   return result.join(', ');
 }
 
-// 🧠 parse monster
 function parseMonster(raw) {
-  const dmg = parseMaxDamage(raw);
+  const dmg           = parseMaxDamage(raw);
   const bestiarylevel = getMulti(raw, ['bestiarylevel']);
-
   return {
-    name: getMulti(raw, ['name']),
-    hp: getMulti(raw, ['hp']),
-    exp: getMulti(raw, ['exp']),
-    maxdmg: dmg,
+    name:         getMulti(raw, ['name']),
+    hp:           getMulti(raw, ['hp']),
+    exp:          getMulti(raw, ['exp']),
+    maxdmg:       dmg,
     usedelements: parseUsedElements(raw),
-    resist: parseResistances(raw),
-    location: parseLocation(raw),
-    charmPoints: calculateCharmPoints(bestiarylevel),
-    kills: calculateKills(bestiarylevel),
-    loot: parseLoot(raw),
+    resist:       parseResistances(raw),
+    location:     parseLocation(raw),
+    charmPoints:  calculateCharmPoints(bestiarylevel),
+    kills:        calculateKills(bestiarylevel),
+    loot:         parseLoot(raw),
   };
+}
+
+// 🔑 Convierte "king zelos" → "King_Zelos" y variantes para buscar directo
+function queryToTitleVariants(query) {
+  const titleCase = query
+    .trim()
+    .split(' ')
+    .map(w => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase())
+    .join('_');
+
+  const upperFirst = query.trim().charAt(0).toUpperCase() + query.trim().slice(1).toLowerCase();
+  const upperFirst_ = upperFirst.replace(/ /g, '_');
+
+  return [
+    titleCase,
+    upperFirst_,
+    query.trim().replace(/ /g, '_'),
+  ].filter((v, i, arr) => arr.indexOf(v) === i); // deduplicar
+}
+
+// 📄 Obtiene el raw wikitext de un título exacto, o null si no existe / no es monster
+async function fetchByTitle(title) {
+  try {
+    const res = await axios.get(
+      `https://tibia.fandom.com/api.php?action=query&prop=revisions&titles=${encodeURIComponent(title)}&rvprop=content&format=json`
+    );
+    const page = Object.values(res.data.query.pages)[0];
+    if (page.missing !== undefined) return null;
+    const raw = page?.revisions?.[0]?.['*'];
+    if (!raw || !isValidMonster(raw)) return null;
+    return { title, content: raw };
+  } catch {
+    return null;
+  }
 }
 
 module.exports = async (msg) => {
@@ -265,46 +251,48 @@ module.exports = async (msg) => {
     const query = args.join(' ');
     console.log('🔍 Buscando monster:', query);
 
-    const searchRes = await axios.get(
-      `https://tibia.fandom.com/api.php?action=query&list=search&srsearch=${encodeURIComponent(query)}&format=json`
-    );
-
-    const results = searchRes.data?.query?.search || [];
-
-    if (!results.length) {
-      const errorMsg = await msg.reply('Monster no encontrado.');
-      await errorMsg.react('❎');
-      await msg.react('❎');
-      return null;
-    }
-
-    let title = null;
+    let title   = null;
     let content = null;
 
-    for (const r of results) {
-      const formatted = r.title.replace(/ /g, '_');
+    // ── Paso 1: búsqueda directa por título exacto y variantes ──────────────
+    const variants = queryToTitleVariants(query);
+    console.log('🎯 Probando títulos directos:', variants);
 
-      try {
-        const rawRes = await axios.get(
-          `https://tibia.fandom.com/api.php?action=query&prop=revisions&titles=${formatted}&rvprop=content&format=json`
-        );
-
-        const page = Object.values(rawRes.data.query.pages)[0];
-        const raw = page?.revisions?.[0]?.['*'];
-
-        if (!raw || !isValidMonster(raw)) continue;
-        if (!nameMatchesQuery(r.title, query)) {
-          console.log(`⏭️ Saltando "${r.title}" — no coincide con "${query}"`);
-          continue;
-        }
-
-        title = formatted;
-        content = raw;
-        console.log('✅ Monster encontrado:', title);
+    for (const variant of variants) {
+      const result = await fetchByTitle(variant);
+      if (result) {
+        title   = result.title;
+        content = result.content;
+        console.log('✅ Encontrado por título directo:', title);
         break;
+      }
+    }
 
-      } catch {
-        continue;
+    // ── Paso 2: si no encontró, usa el search general sin filtro de nombre ──
+    if (!title) {
+      console.log('🔎 No encontrado directo, usando search general...');
+
+      const searchRes = await axios.get(
+        `https://tibia.fandom.com/api.php?action=query&list=search&srsearch=${encodeURIComponent(query)}&format=json`
+      );
+      const results = searchRes.data?.query?.search || [];
+
+      if (!results.length) {
+        const errorMsg = await msg.reply('Monster no encontrado.');
+        await errorMsg.react('❎');
+        await msg.react('❎');
+        return null;
+      }
+
+      for (const r of results) {
+        const formatted = r.title.replace(/ /g, '_');
+        const result = await fetchByTitle(formatted);
+        if (result) {
+          title   = result.title;
+          content = result.content;
+          console.log('✅ Monster encontrado via search:', title);
+          break;
+        }
       }
     }
 
@@ -318,8 +306,7 @@ module.exports = async (msg) => {
     const s = parseMonster(content);
 
     let text = `👾 *${s.name || query}*\n\n`;
-
-    if (s.hp) text += `❤️ *Vida:* ${s.hp}\n`;
+    if (s.hp)  text += `❤️ *Vida:* ${s.hp}\n`;
     if (s.exp) text += `✨ *Experiencia:* ${s.exp}\n`;
 
     if (s.maxdmg) {
@@ -355,7 +342,7 @@ module.exports = async (msg) => {
       const errorMsg = await msg.reply('Error.');
       await errorMsg.react('❎');
       await msg.react('❎');
-    } catch { }
+    } catch {}
     return null;
   }
 };
