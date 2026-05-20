@@ -1,4 +1,4 @@
-﻿const qrcode = require('qrcode-terminal');
+const qrcode = require('qrcode-terminal');
 const { Client, LocalAuth } = require('whatsapp-web.js');
 const { getFreshGroupChat } = require('./utils/groupSync');
 
@@ -31,7 +31,10 @@ const commandEmojis = {
     // descargas
     elfbot: '🧩',
     client860: '🧩',
-    helper: '🧩'
+    helper: '🧩',
+
+    // multimedia
+    media: '⬇️'
 };
 
 
@@ -46,7 +49,8 @@ const cooldownCommands = {
     monster: 5,
     rashid: 5,
     imbuement: 5,
-    shared: 5
+    shared: 5,
+    media: 5
 };
 
 // cooldowns[userId][command] = { last, warned }
@@ -59,7 +63,7 @@ const cooldowns = {};
 async function safeReact(message, emoji) {
     try {
         await message.react(emoji);
-    } catch {}
+    } catch { }
 }
 
 function checkCooldown(userId, command) {
@@ -145,6 +149,7 @@ const elfbot = require('./commands/elfbot');
 const client860 = require('./commands/client860');
 const helper = require('./commands/helper');
 const imbuement = require('./commands/imbuements');
+const media = require('./commands/media');
 
 const commands = {
     menu,
@@ -164,7 +169,8 @@ const commands = {
 
     elfbot,
     client860,
-    helper
+    helper,
+    media
 };
 
 /* =========================
@@ -172,27 +178,27 @@ const commands = {
 ========================= */
 
 const client = new Client({
-  authStrategy: new LocalAuth(),
-  puppeteer: {
-    headless: true,
-    args: [
-      '--no-sandbox',
-      '--disable-setuid-sandbox',
-      '--disable-dev-shm-usage',
-      '--disable-gpu',
-      '--disable-software-rasterizer',
-      '--disable-extensions',
-      '--disable-background-networking',
-      '--disable-default-apps',
-      '--disable-sync',
-      '--disable-translate',
-      '--metrics-recording-only',
-      '--mute-audio',
-      '--no-first-run',
-      '--safebrowsing-disable-auto-update',
-      '--disable-features=site-per-process'
-    ]
-  }
+    authStrategy: new LocalAuth(),
+    puppeteer: {
+        headless: true,
+        args: [
+            '--no-sandbox',
+            '--disable-setuid-sandbox',
+            '--disable-dev-shm-usage',
+            '--disable-gpu',
+            '--disable-software-rasterizer',
+            '--disable-extensions',
+            '--disable-background-networking',
+            '--disable-default-apps',
+            '--disable-sync',
+            '--disable-translate',
+            '--metrics-recording-only',
+            '--mute-audio',
+            '--no-first-run',
+            '--safebrowsing-disable-auto-update',
+            '--disable-features=site-per-process'
+        ]
+    }
 });
 
 client.on('qr', qr => qrcode.generate(qr, { small: true }));
@@ -203,8 +209,8 @@ client.on('ready', () => {
 
 // Muestra error de porque se desconecta
 client.on('disconnected', (reason) => {
-  console.error('WhatsApp desconectado:', reason);
-  process.exit(1);
+    console.error('WhatsApp desconectado:', reason);
+    process.exit(1);
 });
 
 /* =========================
@@ -338,13 +344,11 @@ client.initialize();
  */
 
 process.on('unhandledRejection', (reason) => {
-  console.error('Unhandled Rejection:', reason);
-  process.exit(1);
+    console.error('Unhandled Rejection:', reason);
+    process.exit(1);
 });
 
 process.on('uncaughtException', (err) => {
-  console.error('Uncaught Exception:', err);
-  process.exit(1);
+    console.error('Uncaught Exception:', err);
+    process.exit(1);
 });
-
-
