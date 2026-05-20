@@ -4,6 +4,9 @@ const { promisify } = require('util');
 const axios = require('axios');
 const fs = require('fs');
 const path = require('path');
+const ffmpeg = require('fluent-ffmpeg');
+const ffmpegPath = require('ffmpeg-static');
+ffmpeg.setFfmpegPath(ffmpegPath);
 
 const execFileAsync = promisify(execFile);
 
@@ -11,6 +14,28 @@ const execFileAsync = promisify(execFile);
 const MAX_FILE_SIZE_MB   = 50;
 const MAX_FILE_SIZE_BYTES = MAX_FILE_SIZE_MB * 1024 * 1024;
 const COOKIES_FILE       = path.join(process.cwd(), 'cookies_twitter.txt');
+
+// ─── Reconversión de video a h264 (requerido por WhatsApp Web) ────────────
+// WhatsApp Web SOLO acepta MP4 con codec libx264. TikTok, X, Instagram
+// usan h265/hevc/av1 → causa el error "t: t" en Puppeteer al enviar.
+async function reencodeToH264(inputPath, outputPath) {
+    return new Promise((resolve, reject) => {
+        ffmpeg(inputPath)
+            .outputOptions([
+                '-c:v', 'libx264',
+                '-preset', 'fast',
+                '-crf', '28',
+                '-c:a', 'aac',
+                '-b:a', '128k',
+                '-movflags', '+faststart',
+                '-pix_fmt', 'yuv420p',
+            ])
+            .toFormat('mp4')
+            .save(outputPath)
+            .on('end', resolve)
+            .on('error', reject);
+    });
+}
 
 // Instancias de cobalt a intentar en orden (fallback automático)
 // Agrega o quita según disponibilidad; la primera que responda gana
@@ -330,20 +355,45 @@ module.exports = async (msg) => {
         }
 
         // ── Enviar ────────────────────────────────────────────────────────
-        // Usamos fromFilePath (igual que rashid.js) para evitar pasar el
-        // base64 por el contexto de Puppeteer, lo que causa error "t: t"
-        // con archivos mayores a ~1 MB.
-        const media = MessageMedia.fromFilePath(filePath);
-
-        console.log(`[MEDIA] Enviando .${ext} (${(stats.size / 1024 / 1024).toFixed(2)} MB)`);
-
         const isAudio = ['mp3', 'm4a', 'ogg', 'opus', 'wav', 'flac'].includes(ext);
         const isVideo = ['mp4', 'webm', 'mkv', 'mov', 'avi'].includes(ext);
 
+        // ── Reconvertir video a h264 si es necesario ──────────────────────
+        // WhatsApp Web solo acepta MP4 + libx264. TikTok, X, Instagram
+        // suelen entregar h265/hevc/av1, lo que causa el error "t: t".
+        // Siempre reconvertimos para garantizar compatibilidad.
+        let finalPath = filePath;
+        if (isVideo) {
+            const convertedPath = filePath.replace(/\.\w+$/, '_h264.mp4');
+            console.log(`[MEDIA] Reconvirtiendo a h264...`);
+            try {
+                await reencodeToH264(filePath, convertedPath);
+                finalPath = convertedPath;
+                console.log(`[MEDIA] Reconversión OK → ${convertedPath}`);
+            } catch (convErr) {
+                console.warn('[MEDIA] Reconversión falló, intentando enviar original:', convErr.message);
+                finalPath = filePath; // fallback al original
+            }
+        }
+
+        // Verificar tamaño del archivo final (puede haber cambiado tras reencoding)
+        const finalStats = fs.statSync(finalPath);
+        if (finalStats.size > MAX_FILE_SIZE_BYTES) {
+            const sizeMb = (finalStats.size / 1024 / 1024).toFixed(1);
+            const errorMsg = await msg.reply(
+                `❌ El archivo pesa *${sizeMb} MB* tras procesar y supera el límite de ${MAX_FILE_SIZE_MB} MB de WhatsApp.`
+            );
+            await errorMsg.react('❎');
+            await msg.react('❎');
+            return null;
+        }
+
+        // fromFilePath evita pasar el base64 por Puppeteer (sin límite de tamaño)
+        const media = MessageMedia.fromFilePath(finalPath);
+
+        console.log(`[MEDIA] Enviando .${isVideo ? 'mp4(h264)' : ext} (${(finalStats.size / 1024 / 1024).toFixed(2)} MB)`);
+
         return await msg.reply(media, undefined, {
-            // Audio → reproductor nativo de WhatsApp
-            // Video → reproductor nativo de WhatsApp
-            // Otros → documento para no perder calidad
             sendMediaAsDocument: !isAudio && !isVideo,
             caption: '⬇️ Descargado con AkR Bot',
         });
