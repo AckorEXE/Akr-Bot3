@@ -330,14 +330,21 @@ module.exports = async (msg) => {
         }
 
         // ── Enviar ────────────────────────────────────────────────────────
-        const mime  = getMime(ext);
-        const data  = fs.readFileSync(filePath, { encoding: 'base64' });
-        const media = new MessageMedia(mime, data);
+        // Usamos fromFilePath (igual que rashid.js) para evitar pasar el
+        // base64 por el contexto de Puppeteer, lo que causa error "t: t"
+        // con archivos mayores a ~1 MB.
+        const media = MessageMedia.fromFilePath(filePath);
 
         console.log(`[MEDIA] Enviando .${ext} (${(stats.size / 1024 / 1024).toFixed(2)} MB)`);
 
+        const isAudio = ['mp3', 'm4a', 'ogg', 'opus', 'wav', 'flac'].includes(ext);
+        const isVideo = ['mp4', 'webm', 'mkv', 'mov', 'avi'].includes(ext);
+
         return await msg.reply(media, undefined, {
-            sendMediaAsDocument: ext !== 'mp4' && !ext.startsWith('mp'),
+            // Audio → reproductor nativo de WhatsApp
+            // Video → reproductor nativo de WhatsApp
+            // Otros → documento para no perder calidad
+            sendMediaAsDocument: !isAudio && !isVideo,
             caption: '⬇️ Descargado con AkR Bot',
         });
 
