@@ -7,7 +7,8 @@ module.exports = async (msg) => {
 ├🚫 *!kick* <@usuario>  
 
 🎨 *Multimedia*  
-├🖼️ *!sticker* | *!s*  
+├🖼️ *!sticker* | *!s*
+├⬇️ *!media* | <link>
 
 🐉 *Tibia*  
 ├🛡️ *!item* <nombre>  
