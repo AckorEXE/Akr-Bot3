@@ -15,6 +15,7 @@ const commandEmojis = {
     // multimedia
     sticker: '🖼️',
     s: '🖼️',
+    media: '⬇️',
 
     // tibia
     item: '🛡️',
@@ -32,9 +33,6 @@ const commandEmojis = {
     elfbot: '🧩',
     client860: '🧩',
     helper: '🧩',
-
-    // multimedia
-    media: '⬇️'
 };
 
 
