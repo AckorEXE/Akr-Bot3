@@ -1,7 +1,6 @@
 const { MessageMedia } = require('whatsapp-web.js');
 const { execFile } = require('child_process');
 const { promisify } = require('util');
-const axios = require('axios');
 const fs = require('fs');
 const path = require('path');
 const ffmpeg = require('fluent-ffmpeg');
@@ -13,53 +12,21 @@ const execFileAsync = promisify(execFile);
 // ─── Config ────────────────────────────────────────────────────────────────
 const MAX_FILE_SIZE_MB    = 50;
 const MAX_FILE_SIZE_BYTES = MAX_FILE_SIZE_MB * 1024 * 1024;
-const COOKIES_FILE        = path.join(process.cwd(), 'cookies_twitter.txt');
 
-// ─── MIME types ────────────────────────────────────────────────────────────
-const MIME_BY_EXT = {
-    mp4:  'video/mp4',
-    webm: 'video/webm',
-    mkv:  'video/x-matroska',
-    mov:  'video/quicktime',
-    avi:  'video/x-msvideo',
-    mp3:  'audio/mpeg',
-    m4a:  'audio/mp4',
-    ogg:  'audio/ogg',
-    opus: 'audio/ogg',
-    wav:  'audio/wav',
-    flac: 'audio/flac',
-    webp: 'image/webp',
-    jpg:  'image/jpeg',
-    jpeg: 'image/jpeg',
-    png:  'image/png',
-    gif:  'image/gif',
-};
-
-// ─── Plataformas ───────────────────────────────────────────────────────────
+// ─── Plataformas soportadas ────────────────────────────────────────────────
 function detectPlatform(url) {
     try {
         const h = new URL(url).hostname.replace('www.', '');
-        if (['x.com', 'twitter.com', 't.co'].includes(h))                    return 'twitter';
-        if (['tiktok.com', 'vm.tiktok.com', 'vt.tiktok.com'].includes(h))    return 'tiktok';
-        if (['instagram.com', 'instagr.am'].includes(h))                      return 'instagram';
+        if (['tiktok.com', 'vm.tiktok.com', 'vt.tiktok.com'].includes(h))         return 'tiktok';
+        if (['instagram.com', 'instagr.am'].includes(h))                           return 'instagram';
         if (['facebook.com', 'fb.com', 'fb.watch', 'm.facebook.com'].includes(h)) return 'facebook';
-        if (['youtube.com', 'youtu.be', 'm.youtube.com'].includes(h))         return 'youtube';
-        if (['reddit.com', 'redd.it', 'v.redd.it'].includes(h))               return 'reddit';
-        return 'generic';
+        return null; // plataforma no soportada
     } catch {
-        return 'generic';
+        return null;
     }
 }
 
 // ─── Helpers ───────────────────────────────────────────────────────────────
-function detectFile(basePath) {
-    for (const ext of Object.keys(MIME_BY_EXT)) {
-        const candidate = `${basePath}.${ext}`;
-        if (fs.existsSync(candidate)) return { filePath: candidate, ext };
-    }
-    return null;
-}
-
 function isValidUrl(str) {
     try {
         const u = new URL(str);
@@ -74,10 +41,35 @@ async function getYtDlpPath() {
     return null;
 }
 
-// ─── Detección de codec ────────────────────────────────────────────────────
-// Revisa si el video ya está en h264. Si sí, no re-encodea (evita degradar
-// TikToks que vienen en h264 nativo y eran los que "fallaban" por convertirse
-// innecesariamente).
+// Busca cualquier archivo que empiece con el basePath (yt-dlp puede generar
+// nombres con título, ID, etc. dependiendo del template usado)
+function findDownloadedFile(basePath) {
+    const dir    = path.dirname(basePath);
+    const prefix = path.basename(basePath);
+    const videoExts  = ['mp4', 'webm', 'mkv', 'mov', 'avi'];
+    const audioExts  = ['mp3', 'm4a', 'ogg', 'opus', 'wav', 'flac'];
+    const allExts    = [...videoExts, ...audioExts];
+
+    try {
+        const files = fs.readdirSync(dir).filter(f => f.startsWith(prefix));
+
+        // Priorizar mp4
+        for (const ext of allExts) {
+            const found = files.find(f => f.endsWith(`.${ext}`));
+            if (found) {
+                return {
+                    filePath: path.join(dir, found),
+                    ext,
+                    isVideo: videoExts.includes(ext),
+                    isAudio: audioExts.includes(ext),
+                };
+            }
+        }
+    } catch {}
+    return null;
+}
+
+// ─── Detección de codec con ffprobe ───────────────────────────────────────
 async function detectVideoCodec(filePath) {
     return new Promise((resolve) => {
         ffmpeg.ffprobe(filePath, (err, metadata) => {
@@ -88,28 +80,40 @@ async function detectVideoCodec(filePath) {
     });
 }
 
-// ─── Re-encode solo si es necesario ───────────────────────────────────────
-// WhatsApp Web requiere h264 + aac en mp4. Pero muchos TikToks y Facebook
-// ya vienen en h264 → re-encodear era lo que los rompía. Solo convertimos
-// si el codec no es h264/avc.
+// ─── Procesamiento de video ────────────────────────────────────────────────
+// - Si ya es h264 en mp4 → enviar directo (TikTok y Facebook casi siempre lo son)
+// - Si es h264 en otro container → remux rápido a mp4 (sin re-encodear)
+// - Si es otro codec (hevc, av1, vp9) → re-encodear a h264
 async function ensureH264(filePath, basePath) {
     const codec = await detectVideoCodec(filePath);
     console.log(`[MEDIA] Codec detectado: ${codec}`);
 
-    // Ya es h264 → usar directo, sin re-encodear
-    if (codec && (codec === 'h264' || codec === 'avc')) {
-        // Si no es mp4 en extension, renombrar/copiar container
-        if (!filePath.endsWith('.mp4')) {
-            const outPath = `${basePath}_final.mp4`;
-            await remuxToMp4(filePath, outPath);
-            return outPath;
-        }
+    const isH264 = codec === 'h264' || codec === 'avc';
+    const isMp4  = filePath.endsWith('.mp4');
+
+    if (isH264 && isMp4) {
+        console.log('[MEDIA] Ya es h264/mp4, no se necesita procesamiento');
         return filePath;
     }
 
-    // Codec incompatible (hevc, av1, vp9, etc.) → re-encodear
+    if (isH264 && !isMp4) {
+        // Solo cambiar container, sin re-encodear (muy rápido)
+        const outPath = `${basePath}_remux.mp4`;
+        console.log('[MEDIA] Remuxing a mp4 (sin re-encode)...');
+        await new Promise((resolve, reject) => {
+            ffmpeg(filePath)
+                .outputOptions(['-c', 'copy', '-movflags', '+faststart'])
+                .toFormat('mp4')
+                .save(outPath)
+                .on('end', resolve)
+                .on('error', reject);
+        });
+        return outPath;
+    }
+
+    // Codec incompatible → re-encodear
     const outPath = `${basePath}_h264.mp4`;
-    console.log(`[MEDIA] Re-encodando ${codec} → h264...`);
+    console.log(`[MEDIA] Re-encodando ${codec || 'desconocido'} → h264...`);
     await new Promise((resolve, reject) => {
         ffmpeg(filePath)
             .outputOptions([
@@ -129,71 +133,8 @@ async function ensureH264(filePath, basePath) {
     return outPath;
 }
 
-// Remux: solo cambia el container a mp4 sin re-encodear (muy rápido)
-async function remuxToMp4(filePath, outPath) {
-    return new Promise((resolve, reject) => {
-        ffmpeg(filePath)
-            .outputOptions(['-c', 'copy', '-movflags', '+faststart'])
-            .toFormat('mp4')
-            .save(outPath)
-            .on('end', resolve)
-            .on('error', reject);
-    });
-}
-
-// ─── Cobalt API ────────────────────────────────────────────────────────────
-const COBALT_INSTANCES = [
-    'https://api.cobalt.tools',
-    'https://cobalt.api.royalehosting.net',
-    'https://co.wuk.sh',
-];
-
-async function tryViaCobalt(url) {
-    const payload = {
-        url,
-        videoQuality:  '1080',
-        audioFormat:   'mp3',
-        audioBitrate:  '128',
-        filenameStyle: 'basic',
-        downloadMode:  'auto',
-    };
-
-    for (const instance of COBALT_INSTANCES) {
-        try {
-            console.log(`[MEDIA] Cobalt → ${instance}`);
-            const res = await axios.post(`${instance}/`, payload, {
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Accept':       'application/json',
-                    'User-Agent':   'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/148.0.0.0 Safari/537.36',
-                    'Origin':       'https://cobalt.tools',
-                    'Referer':      'https://cobalt.tools/',
-                },
-                timeout: 15000,
-            });
-
-            const data = res.data;
-            console.log(`[MEDIA] Cobalt ${instance} status: ${data?.status}`);
-
-            if ((data?.status === 'tunnel' || data?.status === 'redirect') && data?.url) {
-                return { downloadUrl: data.url, filename: data.filename || null };
-            }
-
-            if (data?.status === 'picker' && data?.picker?.length) {
-                const first = data.picker[0];
-                if (first?.url) return { downloadUrl: first.url, filename: data.audioFilename || null };
-            }
-        } catch (err) {
-            console.log(`[MEDIA] Cobalt ${instance} falló: ${err?.response?.status || err.message}`);
-        }
-    }
-    return null;
-}
-
-// ─── yt-dlp ────────────────────────────────────────────────────────────────
-// Formatos optimizados por plataforma para evitar codecs incompatibles
-// y reducir tamaño de descarga.
-function buildYtDlpArgs(url, basePath, platform) {
+// ─── Argumentos yt-dlp por plataforma ─────────────────────────────────────
+function buildYtDlpArgs(basePath, platform) {
     const base = [
         '--no-playlist',
         '--no-warnings',
@@ -201,112 +142,58 @@ function buildYtDlpArgs(url, basePath, platform) {
         '-o', `${basePath}.%(ext)s`,
         '--no-part',
         '--socket-timeout', '30',
+        '--retries', '3',
     ];
 
-    // TikTok: pedir mp4 directamente en h264 (casi siempre disponible)
     if (platform === 'tiktok') {
+        // TikTok: pedir mp4 h264 directamente. También intentar sin marca de agua.
         return [
             ...base,
+            '--extractor-args', 'tiktok:api_hostname=api22-normal-c-useast2a.tiktokv.com',
             '-f', 'mp4/best[ext=mp4]/best',
             '--merge-output-format', 'mp4',
         ];
     }
 
-    // Instagram: videos en mp4, evitar formatos dash que traen hevc
     if (platform === 'instagram') {
+        // Instagram: preferir h264 mp4, evitar dash con hevc
         return [
             ...base,
-            '-f', 'best[ext=mp4][vcodec^=avc]/best[ext=mp4]/best',
+            '-f', 'best[ext=mp4][vcodec^=avc]/best[ext=mp4]/bestvideo[ext=mp4]+bestaudio/best',
             '--merge-output-format', 'mp4',
         ];
     }
 
-    // Facebook: preferir h264 mp4 explícitamente
     if (platform === 'facebook') {
+        // Facebook: h264 mp4 explícito, calidad SD primero (más estable)
         return [
             ...base,
-            '-f', 'best[ext=mp4][vcodec^=avc]/best[ext=mp4]/best[filesize<?50M]',
+            '-f', 'best[ext=mp4][vcodec^=avc]/sd/best[ext=mp4]/best',
             '--merge-output-format', 'mp4',
         ];
     }
 
-    // Twitter/X: necesita cookies, formato genérico bueno
-    if (platform === 'twitter') {
-        return [
-            ...base,
-            '-f', 'bestvideo[ext=mp4]+bestaudio[ext=m4a]/best[ext=mp4]/best',
-            '--merge-output-format', 'mp4',
-        ];
-    }
-
-    // Genérico / YouTube / Reddit
-    return [
-        ...base,
-        '-f', 'bestvideo[ext=mp4][filesize<?50M]+bestaudio[ext=m4a]/best[ext=mp4][filesize<?50M]/best[filesize<?50M]/bestaudio/best',
-        '--merge-output-format', 'mp4',
-    ];
+    return base;
 }
 
 async function tryViaYtDlp(url, basePath, platform) {
     const ytDlpBin = await getYtDlpPath();
     if (!ytDlpBin) return { error: 'no_ytdlp' };
 
-    if (platform === 'twitter' && !fs.existsSync(COOKIES_FILE)) {
-        return { error: 'no_cookies' };
-    }
-
-    const ytArgs = buildYtDlpArgs(url, basePath, platform);
-    if (platform === 'twitter') ytArgs.push('--cookies', COOKIES_FILE);
-
-    // Instagram y Facebook también pueden necesitar cookies si el contenido es privado
-    // pero para contenido público no hacen falta
+    const ytArgs = buildYtDlpArgs(basePath, platform);
     ytArgs.push(url);
 
-    console.log(`[MEDIA] yt-dlp [${platform}] → descargando`);
+    console.log(`[MEDIA] yt-dlp [${platform}] iniciando...`);
 
     try {
-        await execFileAsync(ytDlpBin, ytArgs, { timeout: 120_000 });
+        const result = await execFileAsync(ytDlpBin, ytArgs, { timeout: 120_000 });
+        console.log(`[MEDIA] yt-dlp stdout: ${result.stdout?.slice(0, 200)}`);
         return { success: true };
     } catch (err) {
-        const reason = (err.stderr || err.message || '').toLowerCase();
+        const reason = (err.stderr || err.stdout || err.message || '').toLowerCase();
+        console.log(`[MEDIA] yt-dlp falló: ${reason.slice(0, 300)}`);
         return { error: 'ytdlp_failed', reason };
     }
-}
-
-// ─── Descarga de URL directa (resultado de Cobalt) ────────────────────────
-async function downloadUrlToFile(downloadUrl, basePath) {
-    const res = await axios.get(downloadUrl, {
-        responseType: 'stream',
-        timeout: 120_000,
-        maxContentLength: MAX_FILE_SIZE_BYTES + 1024 * 1024,
-        headers: {
-            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
-        },
-    });
-
-    const contentType = res.headers['content-type'] || '';
-    let ext = 'mp4';
-    if      (contentType.includes('audio/mpeg'))  ext = 'mp3';
-    else if (contentType.includes('audio/mp4'))   ext = 'm4a';
-    else if (contentType.includes('audio/ogg'))   ext = 'ogg';
-    else if (contentType.includes('video/webm'))  ext = 'webm';
-    else if (contentType.includes('video/mp4'))   ext = 'mp4';
-    else {
-        const urlExt = downloadUrl.split('?')[0].split('.').pop().toLowerCase();
-        if (MIME_BY_EXT[urlExt]) ext = urlExt;
-    }
-
-    const filePath = `${basePath}.${ext}`;
-
-    await new Promise((resolve, reject) => {
-        const writer = fs.createWriteStream(filePath);
-        res.data.pipe(writer);
-        writer.on('finish', resolve);
-        writer.on('error', reject);
-        res.data.on('error', reject);
-    });
-
-    return { filePath, ext };
 }
 
 // ─── Comando principal ─────────────────────────────────────────────────────
@@ -319,9 +206,11 @@ module.exports = async (msg) => {
 
         if (!args.length || !args[0]) {
             const errorMsg = await msg.reply(
-                '⬇️ *Uso correcto:* !media <url>\n' +
-                'Ejemplo: *!media https://www.tiktok.com/@user/video/...*\n\n' +
-                'Compatible con TikTok, Facebook, Instagram.'
+                '⬇️ *Uso correcto:* !media <url>\n\n' +
+                'Compatible con:\n' +
+                '• TikTok\n' +
+                '• Facebook\n' +
+                '• Instagram'
             );
             await errorMsg.react('❎');
             await msg.react('❎');
@@ -340,136 +229,101 @@ module.exports = async (msg) => {
         const platform = detectPlatform(url);
         console.log(`[MEDIA] URL: ${url} | Plataforma: ${platform}`);
 
-        let filePath = null;
-        let ext      = null;
-
-        // ── INTENTO 1: Cobalt (rápido, sin yt-dlp) ────────────────────────
-        // Cobalt es ideal para TikTok, Instagram y Twitter sin necesitar binario externo.
-        // Para Facebook es menos confiable, se prefiere yt-dlp directamente.
-        if (platform !== 'facebook') {
-            const cobaltResult = await tryViaCobalt(url);
-            if (cobaltResult) {
-                console.log(`[MEDIA] Cobalt OK → descargando stream`);
-                try {
-                    const downloaded = await downloadUrlToFile(cobaltResult.downloadUrl, basePath);
-                    filePath = downloaded.filePath;
-                    ext      = downloaded.ext;
-                    console.log(`[MEDIA] Stream descargado: ${filePath}`);
-                } catch (streamErr) {
-                    console.warn('[MEDIA] Cobalt stream falló:', streamErr.message);
-                    filePath = null;
-                }
-            }
-        }
-
-        // ── INTENTO 2: yt-dlp (fallback robusto) ──────────────────────────
-        if (!filePath) {
-            console.log(`[MEDIA] Usando yt-dlp [${platform}]...`);
-            const ytResult = await tryViaYtDlp(url, basePath, platform);
-
-            if (ytResult.error === 'no_ytdlp') {
-                const errorMsg = await msg.reply(
-                    'No se pudo descargar el contenido.\n' +
-                    '_yt-dlp no está instalado en el servidor._'
-                );
-                await errorMsg.react('❎');
-                await msg.react('❎');
-                return null;
-            }
-
-            if (ytResult.error === 'no_cookies') {
-                const errorMsg = await msg.reply(
-                    'Para descargar videos de *X (Twitter)* se necesita el archivo de cookies.\n\n' +
-                    'El administrador debe colocar `cookies_twitter.txt` en la carpeta del bot.\n' +
-                    'Exporta tus cookies desde x.com con la extensión *"Get cookies.txt LOCALLY"*.'
-                );
-                await errorMsg.react('❎');
-                await msg.react('❎');
-                return null;
-            }
-
-            if (ytResult.error === 'ytdlp_failed') {
-                const reason = ytResult.reason || '';
-                let friendlyMsg = 'No se pudo descargar el contenido.';
-
-                if (reason.includes('not supported') || reason.includes('no video formats'))
-                    friendlyMsg = 'La URL no es compatible o el contenido no está disponible.';
-                else if (reason.includes('filesize'))
-                    friendlyMsg = `El archivo supera el límite de ${MAX_FILE_SIZE_MB} MB.`;
-                else if (reason.includes('private') || reason.includes('login') || reason.includes('unavailable')) {
-                    if (platform === 'twitter')
-                        friendlyMsg = 'El video no está disponible. Las cookies pueden haber expirado, vuelve a exportarlas.';
-                    else if (platform === 'instagram' || platform === 'facebook')
-                        friendlyMsg = 'El contenido es privado o requiere iniciar sesión para descargarse.';
-                    else
-                        friendlyMsg = 'El contenido es privado y no se puede descargar.';
-                }
-                else if (reason.includes('timeout') || reason.includes('network'))
-                    friendlyMsg = 'Tiempo de espera agotado. Intenta de nuevo.';
-
-                const errorMsg = await msg.reply(friendlyMsg);
-                await errorMsg.react('❎');
-                await msg.react('❎');
-                return null;
-            }
-
-            const detected = detectFile(basePath);
-            if (!detected) {
-                const errorMsg = await msg.reply('No se encontró el archivo descargado.');
-                await errorMsg.react('❎');
-                await msg.react('❎');
-                return null;
-            }
-
-            filePath = detected.filePath;
-            ext      = detected.ext;
-        }
-
-        // ── Verificar tamaño ──────────────────────────────────────────────
-        const stats = fs.statSync(filePath);
-        if (stats.size > MAX_FILE_SIZE_BYTES) {
-            const sizeMb = (stats.size / 1024 / 1024).toFixed(1);
+        if (!platform) {
             const errorMsg = await msg.reply(
-                `El archivo pesa *${sizeMb} MB* y supera el límite de ${MAX_FILE_SIZE_MB} MB de WhatsApp.`
+                'Plataforma no soportada.\n\n' +
+                'Solo se puede descargar de:\n' +
+                '• TikTok\n' +
+                '• Facebook\n' +
+                '• Instagram'
             );
             await errorMsg.react('❎');
             await msg.react('❎');
             return null;
         }
 
-        const isAudio = ['mp3', 'm4a', 'ogg', 'opus', 'wav', 'flac'].includes(ext);
-        const isVideo = ['mp4', 'webm', 'mkv', 'mov', 'avi'].includes(ext);
+        // ── Descargar con yt-dlp ───────────────────────────────────────────
+        const ytResult = await tryViaYtDlp(url, basePath, platform);
 
-        // ── Procesamiento de video: solo si es necesario ──────────────────
-        // Se detecta el codec real. Si ya es h264, se envía directo o se
-        // hace un remux ligero al container mp4. Solo se re-encodea si el
-        // codec es incompatible (hevc, av1, vp9...).
+        if (ytResult.error === 'no_ytdlp') {
+            const errorMsg = await msg.reply(
+                'No se pudo descargar el contenido.\n' +
+                '_yt-dlp no está instalado en el servidor._'
+            );
+            await errorMsg.react('❎');
+            await msg.react('❎');
+            return null;
+        }
+
+        if (ytResult.error === 'ytdlp_failed') {
+            const reason = ytResult.reason || '';
+            let friendlyMsg = 'No se pudo descargar el contenido.';
+
+            if (reason.includes('not supported') || reason.includes('no video formats') || reason.includes('unsupported url'))
+                friendlyMsg = 'No se pudo acceder al contenido. Verifica que la URL sea correcta y el contenido sea público.';
+            else if (reason.includes('filesize'))
+                friendlyMsg = `El archivo supera el límite de ${MAX_FILE_SIZE_MB} MB.`;
+            else if (reason.includes('private') || reason.includes('login') || reason.includes('unavailable') || reason.includes('restricted'))
+                friendlyMsg = 'El contenido es privado o requiere iniciar sesión.';
+            else if (reason.includes('timeout') || reason.includes('network') || reason.includes('connection'))
+                friendlyMsg = 'Error de conexión. Intenta de nuevo.';
+            else if (reason.includes('copyright') || reason.includes('blocked'))
+                friendlyMsg = 'El contenido no está disponible en esta región o fue bloqueado.';
+
+            const errorMsg = await msg.reply(friendlyMsg);
+            await errorMsg.react('❎');
+            await msg.react('❎');
+            return null;
+        }
+
+        // ── Buscar archivo descargado ──────────────────────────────────────
+        const detected = findDownloadedFile(basePath);
+
+        if (!detected) {
+            console.log(`[MEDIA] No se encontró archivo con prefijo: ${path.basename(basePath)}`);
+            console.log(`[MEDIA] Archivos en dir: ${fs.readdirSync(path.dirname(basePath)).filter(f => f.includes('media_tmp')).join(', ')}`);
+            const errorMsg = await msg.reply('No se encontró el archivo descargado.');
+            await errorMsg.react('❎');
+            await msg.react('❎');
+            return null;
+        }
+
+        const { filePath, ext, isVideo, isAudio } = detected;
+        console.log(`[MEDIA] Archivo encontrado: ${filePath}`);
+
+        // ── Verificar tamaño ──────────────────────────────────────────────
+        const stats = fs.statSync(filePath);
+        if (stats.size > MAX_FILE_SIZE_BYTES) {
+            const sizeMb = (stats.size / 1024 / 1024).toFixed(1);
+            const errorMsg = await msg.reply(`El archivo pesa *${sizeMb} MB* y supera el límite de ${MAX_FILE_SIZE_MB} MB de WhatsApp.`);
+            await errorMsg.react('❎');
+            await msg.react('❎');
+            return null;
+        }
+
+        // ── Procesar video (solo si hace falta) ───────────────────────────
         let finalPath = filePath;
         if (isVideo) {
             try {
                 finalPath = await ensureH264(filePath, basePath);
-                console.log(`[MEDIA] Video listo: ${finalPath}`);
             } catch (convErr) {
                 console.warn('[MEDIA] Procesamiento de video falló, enviando original:', convErr.message);
                 finalPath = filePath;
             }
         }
 
-        // Verificar tamaño del archivo final
+        // Verificar tamaño final
         const finalStats = fs.statSync(finalPath);
         if (finalStats.size > MAX_FILE_SIZE_BYTES) {
             const sizeMb = (finalStats.size / 1024 / 1024).toFixed(1);
-            const errorMsg = await msg.reply(
-                `El archivo pesa *${sizeMb} MB* tras procesar y supera el límite de ${MAX_FILE_SIZE_MB} MB de WhatsApp.`
-            );
+            const errorMsg = await msg.reply(`El archivo pesa *${sizeMb} MB* tras procesar y supera el límite de ${MAX_FILE_SIZE_MB} MB.`);
             await errorMsg.react('❎');
             await msg.react('❎');
             return null;
         }
 
         const media = MessageMedia.fromFilePath(finalPath);
-
-        console.log(`[MEDIA] Enviando (${platform}) .${isVideo ? 'mp4' : ext} ${(finalStats.size / 1024 / 1024).toFixed(2)} MB`);
+        console.log(`[MEDIA] Enviando [${platform}] .${isVideo ? 'mp4' : ext} ${(finalStats.size / 1024 / 1024).toFixed(2)} MB`);
 
         return await msg.reply(media, undefined, {
             sendMediaAsDocument: !isAudio && !isVideo,
@@ -482,7 +336,7 @@ module.exports = async (msg) => {
         throw error;
 
     } finally {
-        // Limpiar todos los archivos temporales
+        // Limpiar todos los temporales
         try {
             const dir    = path.dirname(basePath);
             const prefix = path.basename(basePath);
