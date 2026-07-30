@@ -1,4 +1,4 @@
-const axios = require('axios');
+const fandom = require('../utils/fandom');
 
 function cleanValue(val) {
   if (!val) return null;
@@ -219,20 +219,20 @@ function queryToTitleVariants(query) {
   ].filter((v, i, arr) => arr.indexOf(v) === i); // deduplicar
 }
 
-// 📄 Obtiene el raw wikitext de un título exacto, o null si no existe / no es monster
-async function fetchByTitle(title) {
-  try {
-    const res = await axios.get(
-      `https://tibia.fandom.com/api.php?action=query&prop=revisions&titles=${encodeURIComponent(title)}&rvprop=content&format=json`
-    );
-    const page = Object.values(res.data.query.pages)[0];
-    if (page.missing !== undefined) return null;
-    const raw = page?.revisions?.[0]?.['*'];
-    if (!raw || !isValidMonster(raw)) return null;
-    return { title, content: raw };
-  } catch {
-    return null;
-  }
+// 🚀 Prueba una lista de títulos EN PARALELO y devuelve el primero válido
+// respetando el orden de prioridad del array (no el orden de respuesta).
+async function tryTitles(titles) {
+  if (!titles.length) return null;
+
+  const settled = await Promise.all(
+    titles.map(async (title) => {
+      const raw = await fandom.getPage(title);
+      if (raw && isValidMonster(raw)) return { title, content: raw };
+      return null;
+    })
+  );
+
+  return settled.find(Boolean) || null;
 }
 
 module.exports = async (msg) => {
@@ -249,33 +249,14 @@ module.exports = async (msg) => {
     }
 
     const query = args.join(' ');
-    console.log('🔍 Buscando monster:', query);
 
-    let title   = null;
-    let content = null;
-
-    // ── Paso 1: búsqueda directa por título exacto y variantes ──────────────
+    // ── Paso 1: intentar títulos directos, todos en paralelo ────────────────
     const variants = queryToTitleVariants(query);
-    console.log('🎯 Probando títulos directos:', variants);
+    let found = await tryTitles(variants);
 
-    for (const variant of variants) {
-      const result = await fetchByTitle(variant);
-      if (result) {
-        title   = result.title;
-        content = result.content;
-        console.log('✅ Encontrado por título directo:', title);
-        break;
-      }
-    }
-
-    // ── Paso 2: si no encontró, usa el search general sin filtro de nombre ──
-    if (!title) {
-      console.log('🔎 No encontrado directo, usando search general...');
-
-      const searchRes = await axios.get(
-        `https://tibia.fandom.com/api.php?action=query&list=search&srsearch=${encodeURIComponent(query)}&format=json`
-      );
-      const results = searchRes.data?.query?.search || [];
+    // ── Paso 2: si no encontró, usar search y probar resultados en paralelo ─
+    if (!found) {
+      const results = await fandom.search(query);
 
       if (!results.length) {
         const errorMsg = await msg.reply('Monster no encontrado.');
@@ -284,25 +265,18 @@ module.exports = async (msg) => {
         return null;
       }
 
-      for (const r of results) {
-        const formatted = r.title.replace(/ /g, '_');
-        const result = await fetchByTitle(formatted);
-        if (result) {
-          title   = result.title;
-          content = result.content;
-          console.log('✅ Monster encontrado via search:', title);
-          break;
-        }
-      }
+      const titles = results.map(r => r.title.replace(/ /g, '_'));
+      found = await tryTitles(titles);
     }
 
-    if (!title || !content) {
+    if (!found) {
       const errorMsg = await msg.reply('No se encontró un monster válido.');
       await errorMsg.react('❎');
       await msg.react('❎');
       return null;
     }
 
+    const { title, content } = found;
     const s = parseMonster(content);
 
     let text = `👾 *${s.name || query}*\n\n`;
