@@ -308,7 +308,7 @@ module.exports = async (msg) => {
 
     text += `\n🔎 https://tibia.fandom.com/wiki/${title}`;
 
-    return msg.reply(text);
+    return await msg.reply(text, undefined, { linkPreview: false });
 
   } catch (err) {
     console.log('❌ ERROR:', err.message);
