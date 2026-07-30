@@ -1,5 +1,3 @@
-const { MessageMedia } = require('whatsapp-web.js');
-
 module.exports = async (msg) => {
     try {
         const chat = await msg.getChat();
@@ -8,30 +6,17 @@ module.exports = async (msg) => {
         const inviteCode = await chat.getInviteCode();
         const inviteLink = `https://chat.whatsapp.com/${inviteCode}`;
 
-        // Obtener foto del grupo (si existe)
-        let media = null;
-        try {
-            const photoUrl = await chat.getProfilePicUrl();
-            if (photoUrl) {
-                media = await MessageMedia.fromUrl(photoUrl);
-            }
-        } catch (e) {
-            // Si no hay foto o falla, seguimos sin imagen
-            media = null;
-        }
-
         const caption =
             `👥 *${chat.name}*\n` +
             `📌 Invitación oficial al grupo\n\n` +
             `🔗 ${inviteLink}`;
 
-        // Si hay imagen, enviar imagen + caption
-        if (media) {
-            return await chat.sendMessage(media, { caption });
-        }
-
-        // Si NO hay imagen, enviar solo texto bonito
-        return await chat.sendMessage(caption);
+        // ✅ Mandamos SOLO texto (sin imagen adjunta) para que WhatsApp
+        // reconozca el link de invitación y genere su propia tarjeta
+        // nativa con foto del grupo + botón "Ver grupo".
+        // Si se manda como caption de una imagen, WhatsApp NO activa
+        // esa tarjeta especial y solo muestra un preview genérico feo.
+        return await chat.sendMessage(caption, { linkPreview: true });
 
     } catch (error) {
         console.error('Error en comando link (avanzado):', error);
