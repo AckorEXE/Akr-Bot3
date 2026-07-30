@@ -1,4 +1,4 @@
-const axios = require('axios');
+const fandom = require('../utils/fandom');
 
 // 🧠 limpiar valores inválidos
 function cleanValue(val) {
@@ -169,6 +169,23 @@ function parseStats(raw) {
   };
 }
 
+// 🚀 Prueba una lista de candidatos EN PARALELO y devuelve el primero
+// válido respetando el orden de prioridad del array.
+async function tryCandidates(candidates) {
+  if (!candidates.length) return null;
+
+  const settled = await Promise.all(
+    candidates.map(async (r) => {
+      const formatted = r.title.replace(/ /g, '_');
+      const raw = await fandom.getPage(formatted);
+      if (raw && isValidItem(raw)) return { title: formatted, content: raw };
+      return null;
+    })
+  );
+
+  return settled.find(Boolean) || null;
+}
+
 module.exports = async (msg) => {
   try {
     const args = msg.body.split(' ').slice(1);
@@ -183,11 +200,7 @@ module.exports = async (msg) => {
     const query = args.join(' ');
     const normalizedQuery = query.toLowerCase().trim();
 
-    const searchRes = await axios.get(
-      `https://tibia.fandom.com/api.php?action=query&list=search&srsearch=${encodeURIComponent(query)}&format=json`
-    );
-
-    const results = searchRes.data?.query?.search || [];
+    const results = await fandom.search(query);
 
     if (!results.length) {
       const errorMsg = await msg.reply('No encontrado.');
@@ -198,68 +211,27 @@ module.exports = async (msg) => {
 
     const blacklist = ['quest', 'outfit', 'mount', 'achievement'];
 
-    let title = null;
-    let content = null;
+    // 🔥 1. Candidatos con MATCH EXACTO (máxima prioridad)
+    const exactMatches = results.filter(
+      r => r.title.toLowerCase().trim() === normalizedQuery
+    );
 
-    // 🔥 1. MATCH EXACTO
-    for (const r of results) {
-      const cleanTitle = r.title.toLowerCase().trim();
+    // 🔁 2. Candidatos de FALLBACK (sin blacklist)
+    const fallbackCandidates = results.filter(
+      r => !blacklist.some(w => r.title.toLowerCase().includes(w))
+    );
 
-      if (cleanTitle === normalizedQuery) {
-        const formatted = r.title.replace(/ /g, '_');
+    let found = await tryCandidates(exactMatches);
+    if (!found) found = await tryCandidates(fallbackCandidates);
 
-        try {
-          const rawRes = await axios.get(
-            `https://tibia.fandom.com/api.php?action=query&prop=revisions&titles=${formatted}&rvprop=content&format=json`
-          );
-
-          const page = Object.values(rawRes.data.query.pages)[0];
-          const raw = page?.revisions?.[0]?.['*'];
-
-          if (raw && isValidItem(raw)) {
-            title = formatted;
-            content = raw;
-            break;
-          }
-        } catch {}
-      }
-    }
-
-    // 🔁 2. FALLBACK
-    if (!title) {
-      for (const r of results) {
-        const lower = r.title.toLowerCase();
-
-        if (blacklist.some(w => lower.includes(w))) continue;
-
-        const formatted = r.title.replace(/ /g, '_');
-
-        try {
-          const rawRes = await axios.get(
-            `https://tibia.fandom.com/api.php?action=query&prop=revisions&titles=${formatted}&rvprop=content&format=json`
-          );
-
-          const page = Object.values(rawRes.data.query.pages)[0];
-          const raw = page?.revisions?.[0]?.['*'];
-
-          if (!raw || !isValidItem(raw)) continue;
-
-          title = formatted;
-          content = raw;
-          break;
-        } catch {
-          continue;
-        }
-      }
-    }
-
-    if (!title || !content) {
+    if (!found) {
       const errorMsg = await msg.reply('No se encontró un ítem válido.');
       await errorMsg.react('❎');
       await msg.react('❎');
       return null;
     }
 
+    const { title, content } = found;
     const s = parseStats(content);
 
     let text = `📦 *${s.name || query}*\n\n`;
