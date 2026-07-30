@@ -2,6 +2,8 @@ const axios = require('axios');
 const https = require('https');
 const cache = new Map();
 
+const CACHE_TTL_MS = 12 * 60 * 60 * 1000; // 12 horas
+
 const api = axios.create({
     httpsAgent: new https.Agent({
         keepAlive: true
@@ -23,7 +25,7 @@ async function cacheGet(key, callback) {
         cache.set(key, data);
         setTimeout(() => {
             cache.delete(key);
-        }, 60 * 60 * 1000);
+        }, CACHE_TTL_MS);
     }
     return data;
 }
