@@ -1,6 +1,5 @@
 const qrcode = require('qrcode-terminal');
 const { Client, LocalAuth } = require('whatsapp-web.js');
-const { getFreshGroupChat } = require('./utils/groupSync');
 
 /* =========================
    CONFIGURACIÓN
@@ -52,7 +51,40 @@ const cooldownCommands = {
 };
 
 // cooldowns[userId][command] = { last, warned }
-const cooldowns = {};
+const cooldowns = new Map();
+
+// Cache simple de contactos (5 minutos)
+const contactCache = new Map();
+const CONTACT_CACHE_TTL = 5 * 60 * 1000;
+
+function getCachedContact(userId) {
+    const entry = contactCache.get(userId);
+    if (!entry) return null;
+    if (Date.now() - entry.time > CONTACT_CACHE_TTL) {
+        contactCache.delete(userId);
+        return null;
+    }
+    return entry.value;
+}
+
+function setCachedContact(userId, value) {
+    contactCache.set(userId, { value, time: Date.now() });
+}
+
+// Limpieza automática de cooldowns cada 10 minutos
+setInterval(() => {
+    const now = Date.now();
+    for (const [userId, commandsMap] of cooldowns.entries()) {
+        for (const [cmd, entry] of Object.entries(commandsMap)) {
+            if (now - entry.last > 60 * 60 * 1000) {
+                delete commandsMap[cmd];
+            }
+        }
+        if (Object.keys(commandsMap).length === 0) {
+            cooldowns.delete(userId);
+        }
+    }
+}, 10 * 60 * 1000).unref();
 
 /* =========================
    UTILIDADES
@@ -68,10 +100,11 @@ function checkCooldown(userId, command) {
     if (!cooldownCommands[command]) return { allowed: true };
 
     const now = Date.now();
-    cooldowns[userId] ??= {};
-    cooldowns[userId][command] ??= { last: 0, warned: false };
+    if (!cooldowns.has(userId)) cooldowns.set(userId, {});
+    const userCooldowns = cooldowns.get(userId);
+    userCooldowns[command] ??= { last: 0, warned: false };
 
-    const entry = cooldowns[userId][command];
+    const entry = userCooldowns[command];
     const cdMs = cooldownCommands[command] * 1000;
 
     // Aún en cooldown
@@ -88,7 +121,7 @@ function checkCooldown(userId, command) {
     }
 
     // Cooldown terminado → reset
-    cooldowns[userId][command] = { last: now, warned: false };
+    userCooldowns[command] = { last: now, warned: false };
     return { allowed: true };
 }
 
@@ -217,24 +250,25 @@ client.on('disconnected', (reason) => {
 
 client.on('message', async (msg) => {
     try {
+        // Salir rápido si no parece comando
+        if (!msg.body || msg.body[0] !== '!') return;
+
         // ❌ Ignorar privados
-        const rawChat = await msg.getChat();
-        if (!rawChat.isGroup) return;
-
-        // 🔄 Chat fresco (evita bugs de admin)
-        const chat = await getFreshGroupChat(client, rawChat.id._serialized);
-        if (!chat) return;
-
-        if (!msg.body.startsWith('!')) return;
+        const chat = await msg.getChat();
+        if (!chat.isGroup) return;
 
         const args = msg.body.slice(1).trim().split(/\s+/);
         const commandName = args.shift().toLowerCase();
         const command = commands[commandName];
         if (!command) return;
 
-        const contact = await msg.getContact();
+        let contact = getCachedContact(msg.author || msg.from);
+        if (!contact) {
+            contact = await msg.getContact();
+            setCachedContact(msg.author || msg.from, contact);
+        }
         const userId = contact.id._serialized;
-        const userName = contact.pushname || 'Sin nombre';
+        const userName = contact.pushname || contact.name || 'Sin nombre';
 
         /* ========= COOLDOWN (ANTES DE REACCIONAR) ========= */
 
@@ -270,9 +304,10 @@ client.on('message', async (msg) => {
         // ⏳ Detecta comando
         await safeReact(msg, '⏳');
 
-        // 🔐 Admin check
+        // 🔐 Admin check (solo refrescamos el chat aquí)
         if (adminOnlyCommands.includes(commandName)) {
-            const admin = await isAdmin(chat, userId, client);
+            const freshChat = await client.getChatById(chat.id._serialized);
+            const admin = await isAdmin(freshChat, userId, client);
             if (!admin) {
                 logCommand('NO-ADMIN', {
                     command: commandName,
@@ -284,14 +319,21 @@ client.on('message', async (msg) => {
                 const errMsg = await msg.reply(
                     'Este comando solo puede ser utilizado por administradores.'
                 );
-                await safeReact(msg, '❎');
-                await safeReact(errMsg, '❎');
+                await Promise.allSettled([
+                    safeReact(msg, '❎'),
+                    safeReact(errMsg, '❎')
+                ]);
                 return;
             }
         }
 
         // ▶ Ejecutar comando
+        const started = Date.now();
         const botMessage = await command(msg);
+        const elapsed = Date.now() - started;
+        if (elapsed > 1500) {
+            console.log(`⚠️ Comando lento: ${commandName} tardó ${elapsed}ms`);
+        }
 
         logCommand('OK', {
             command: commandName,
@@ -336,7 +378,7 @@ client.initialize();
  * - El proceso se cierra intencionalmente
  * - PM2 lo reinicia automáticamente en limpio
  *
- * Esto mejora la estabilidad en VPS de bajos recursos (1GB RAM)
+ * Esto mejora la estabilidad del bot y permite que PM2 lo reinicie limpio.
  * y garantiza operación 24/7 sin intervención manual.
  * ============================================================================
  */
