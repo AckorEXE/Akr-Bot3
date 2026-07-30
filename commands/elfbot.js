@@ -7,7 +7,7 @@ Descarga ElfBot (no requiere crack):
 https://www.mediafire.com/file/iahkvgwwnopmcxk/ElfBot_NG_4.5.9.rar/file`;
 
         // ✅ ÉXITO
-        return await msg.reply(text);
+        return await msg.reply(text, undefined, { linkPreview: false });
 
     } catch (error) {
         console.error('Error en comando elfbot:', error);
