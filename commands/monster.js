@@ -1,4 +1,5 @@
 const fandom = require('../utils/fandom');
+const { MessageMedia } = require('whatsapp-web.js');
 
 function cleanValue(val) {
   if (!val) return null;
@@ -185,7 +186,7 @@ function parseLoot(raw) {
 }
 
 function parseMonster(raw) {
-  const dmg            = parseMaxDamage(raw);
+  const dmg           = parseMaxDamage(raw);
   const bestiarylevel = getMulti(raw, ['bestiarylevel']);
   return {
     name:         getMulti(raw, ['name']),
@@ -303,18 +304,14 @@ module.exports = async (msg) => {
 
     text += `\n🔎 https://tibia.fandom.com/wiki/${title}`;
 
-    // ── Construcción de la URL de la imagen ────────────────────────────────
-    // Tomamos el título exacto de la wiki y le sumamos .gif para el Special:FilePath
     const imageUrl = `https://tibia.fandom.com/wiki/Special:FilePath/${title}.gif`;
 
-    // Intentamos enviar la imagen con el texto como caption.
-    // Dependiendo de tu cliente de WhatsApp, puedes pasar la URL directa o usar MessageMedia.
+    // Envío con MessageMedia de whatsapp-web.js adjuntando el texto como caption
     try {
-      // Si tu librería soporta enviar URLs directamente como primer parámetro:
-      return await msg.reply(imageUrl, undefined, { caption: text, linkPreview: false });
+      const media = await MessageMedia.fromUrl(imageUrl);
+      return await msg.reply(media, undefined, { caption: text });
     } catch (imgErr) {
-      // Plan B por si falla el envío de imagen directo: envía solo el texto plano
-      console.log('⚠️ No se pudo enviar la imagen, enviando solo texto:', imgErr.message);
+      console.log('⚠️ No se pudo cargar la imagen, enviando solo texto:', imgErr.message);
       return await msg.reply(text, undefined, { linkPreview: false });
     }
 
