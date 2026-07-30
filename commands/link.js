@@ -16,7 +16,7 @@ module.exports = async (msg) => {
         // nativa con foto del grupo + botón "Ver grupo".
         // Si se manda como caption de una imagen, WhatsApp NO activa
         // esa tarjeta especial y solo muestra un preview genérico feo.
-        return await chat.sendMessage(caption, { linkPreview: true });
+        return await chat.sendMessage(caption, { linkPreview: false });
 
     } catch (error) {
         console.error('Error en comando link (avanzado):', error);
