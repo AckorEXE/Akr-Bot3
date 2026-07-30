@@ -175,9 +175,6 @@ async function tryCandidates(candidates) {
 }
 
 module.exports = async (msg) => {
-  const T = Date.now();
-  const mark = (label) => console.log(`⏱️  [ITEM] ${label}: ${Date.now() - T}ms`);
-
   try {
     const args = msg.body.split(' ').slice(1);
 
@@ -192,7 +189,6 @@ module.exports = async (msg) => {
     const normalizedQuery = query.toLowerCase().trim();
 
     const results = await fandom.search(query);
-    mark('después de search()');
 
     if (!results.length) {
       const errorMsg = await msg.reply('No encontrado.');
@@ -213,7 +209,6 @@ module.exports = async (msg) => {
 
     let found = await tryCandidates(exactMatches);
     if (!found) found = await tryCandidates(fallbackCandidates);
-    mark('después de tryCandidates() (getPage)');
 
     if (!found) {
       const errorMsg = await msg.reply('No se encontró un ítem válido.');
@@ -224,7 +219,6 @@ module.exports = async (msg) => {
 
     const { title, content } = found;
     const s = parseStats(content);
-    mark('después de parseStats()');
 
     let text = `📦 *${s.name || query}*\n\n`;
     if (s.itemid)      text += `🆔 *ID:* ${s.itemid}\n`;
@@ -274,11 +268,7 @@ module.exports = async (msg) => {
 
     text += `\n🔎 https://tibia.fandom.com/wiki/${title}`;
 
-    mark('después de construir el texto (justo antes de msg.reply)');
-    const result = await msg.reply(text);
-    mark('después de msg.reply() ← si el salto grande está aquí, es whatsapp-web.js');
-
-    return result;
+    return await msg.reply(text, undefined, { linkPreview: false });
 
   } catch (err) {
     console.log('❌ ERROR:', err.message);
