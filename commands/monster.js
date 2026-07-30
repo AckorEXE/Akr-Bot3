@@ -1,5 +1,4 @@
 const fandom = require('../utils/fandom');
-const { MessageMedia } = require('whatsapp-web.js');
 
 function cleanValue(val) {
   if (!val) return null;
@@ -202,6 +201,7 @@ function parseMonster(raw) {
   };
 }
 
+// 🔑 Convierte "king zelos" → "King_Zelos" y variantes para buscar directo
 function queryToTitleVariants(query) {
   const titleCase = query
     .trim()
@@ -216,9 +216,11 @@ function queryToTitleVariants(query) {
     titleCase,
     upperFirst_,
     query.trim().replace(/ /g, '_'),
-  ].filter((v, i, arr) => arr.indexOf(v) === i);
+  ].filter((v, i, arr) => arr.indexOf(v) === i); // deduplicar
 }
 
+// 🚀 Prueba una lista de títulos EN PARALELO y devuelve el primero válido
+// respetando el orden de prioridad del array (no el orden de respuesta).
 async function tryTitles(titles) {
   if (!titles.length) return null;
 
@@ -248,9 +250,11 @@ module.exports = async (msg) => {
 
     const query = args.join(' ');
 
+    // ── Paso 1: intentar títulos directos, todos en paralelo ────────────────
     const variants = queryToTitleVariants(query);
     let found = await tryTitles(variants);
 
+    // ── Paso 2: si no encontró, usar search y probar resultados en paralelo ─
     if (!found) {
       const results = await fandom.search(query);
 
@@ -304,17 +308,7 @@ module.exports = async (msg) => {
 
     text += `\n🔎 https://tibia.fandom.com/wiki/${title}`;
 
-
-  const imageUrl = `https://tibia.fandom.com/wiki/Special:FilePath/${title}.gif`;
-
-    try {
-      // Forzamos la descarga del archivo asegurando que whatsapp-web.js lo procese correctamente
-      const media = await MessageMedia.fromUrl(imageUrl, { unsafeMime: true });
-      return await msg.reply(media, undefined, { caption: text });
-    } catch (imgErr) {
-      console.log('⚠️ No se pudo cargar la imagen, enviando solo texto:', imgErr.message);
-      return await msg.reply(text, undefined, { linkPreview: false });
-    }
+    return await msg.reply(text, undefined, { linkPreview: false });
 
   } catch (err) {
     console.log('❌ ERROR:', err.message);
