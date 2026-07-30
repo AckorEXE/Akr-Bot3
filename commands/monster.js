@@ -304,11 +304,12 @@ module.exports = async (msg) => {
 
     text += `\n🔎 https://tibia.fandom.com/wiki/${title}`;
 
-    const imageUrl = `https://tibia.fandom.com/wiki/Special:FilePath/${title}.gif`;
 
-    // Envío con MessageMedia de whatsapp-web.js adjuntando el texto como caption
+  const imageUrl = `https://tibia.fandom.com/wiki/Special:FilePath/${title}.gif`;
+
     try {
-      const media = await MessageMedia.fromUrl(imageUrl);
+      // Forzamos la descarga del archivo asegurando que whatsapp-web.js lo procese correctamente
+      const media = await MessageMedia.fromUrl(imageUrl, { unsafeMime: true });
       return await msg.reply(media, undefined, { caption: text });
     } catch (imgErr) {
       console.log('⚠️ No se pudo cargar la imagen, enviando solo texto:', imgErr.message);
