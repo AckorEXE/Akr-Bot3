@@ -185,7 +185,7 @@ function parseLoot(raw) {
 }
 
 function parseMonster(raw) {
-  const dmg           = parseMaxDamage(raw);
+  const dmg            = parseMaxDamage(raw);
   const bestiarylevel = getMulti(raw, ['bestiarylevel']);
   return {
     name:         getMulti(raw, ['name']),
@@ -201,7 +201,6 @@ function parseMonster(raw) {
   };
 }
 
-// 🔑 Convierte "king zelos" → "King_Zelos" y variantes para buscar directo
 function queryToTitleVariants(query) {
   const titleCase = query
     .trim()
@@ -216,11 +215,9 @@ function queryToTitleVariants(query) {
     titleCase,
     upperFirst_,
     query.trim().replace(/ /g, '_'),
-  ].filter((v, i, arr) => arr.indexOf(v) === i); // deduplicar
+  ].filter((v, i, arr) => arr.indexOf(v) === i);
 }
 
-// 🚀 Prueba una lista de títulos EN PARALELO y devuelve el primero válido
-// respetando el orden de prioridad del array (no el orden de respuesta).
 async function tryTitles(titles) {
   if (!titles.length) return null;
 
@@ -250,11 +247,9 @@ module.exports = async (msg) => {
 
     const query = args.join(' ');
 
-    // ── Paso 1: intentar títulos directos, todos en paralelo ────────────────
     const variants = queryToTitleVariants(query);
     let found = await tryTitles(variants);
 
-    // ── Paso 2: si no encontró, usar search y probar resultados en paralelo ─
     if (!found) {
       const results = await fandom.search(query);
 
@@ -308,7 +303,20 @@ module.exports = async (msg) => {
 
     text += `\n🔎 https://tibia.fandom.com/wiki/${title}`;
 
-    return await msg.reply(text, undefined, { linkPreview: false });
+    // ── Construcción de la URL de la imagen ────────────────────────────────
+    // Tomamos el título exacto de la wiki y le sumamos .gif para el Special:FilePath
+    const imageUrl = `https://tibia.fandom.com/wiki/Special:FilePath/${title}.gif`;
+
+    // Intentamos enviar la imagen con el texto como caption.
+    // Dependiendo de tu cliente de WhatsApp, puedes pasar la URL directa o usar MessageMedia.
+    try {
+      // Si tu librería soporta enviar URLs directamente como primer parámetro:
+      return await msg.reply(imageUrl, undefined, { caption: text, linkPreview: false });
+    } catch (imgErr) {
+      // Plan B por si falla el envío de imagen directo: envía solo el texto plano
+      console.log('⚠️ No se pudo enviar la imagen, enviando solo texto:', imgErr.message);
+      return await msg.reply(text, undefined, { linkPreview: false });
+    }
 
   } catch (err) {
     console.log('❌ ERROR:', err.message);
