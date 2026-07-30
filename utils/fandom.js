@@ -14,15 +14,10 @@ const api = axios.create({
 
 async function cacheGet(key, callback) {
     if (cache.has(key)) {
-        console.log(`⚡ [CACHE HIT] ${key}`);
         return cache.get(key);
     }
 
-    console.log(`🐢 [CACHE MISS] ${key} — pidiendo a Fandom...`);
-    const t0 = Date.now();
     const data = await callback();
-    const elapsed = Date.now() - t0;
-    console.log(`⏱️  [FETCH] ${key} tardó ${elapsed}ms`);
 
     if (data) {
         cache.set(key, data);
