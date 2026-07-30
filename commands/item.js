@@ -85,8 +85,6 @@ const ELEMENT_EMOJI = {
   death:    '💀',
 };
 
-// ⚔️ formatear línea de ataque con elementos
-// Resultado ejemplo: ⚔️ *Ataque:* 57 (⚡ +47 energy, 👊🏻 +10 physical)
 function formatAttack(s) {
   const base = s.attack ? parseInt(s.attack) : null;
 
@@ -99,13 +97,10 @@ function formatAttack(s) {
     { key: 'death',    val: s.death_attack },
   ].filter(e => e.val !== null && e.val !== undefined);
 
-  // Sin daño elemental → mostrar normal
   if (!elements.length) {
     return base !== null ? `⚔️ *Ataque:* ${base}\n` : '';
   }
 
-  // Calcular total: base (physical puro) + todos los elementales
-  // Si hay physical_attack separado, usarlo; si no, base es el físico base
   let total = 0;
   const parts = [];
 
@@ -115,8 +110,6 @@ function formatAttack(s) {
     parts.push(`${ELEMENT_EMOJI[e.key]} +${num} ${e.key}`);
   }
 
-  // Si hay `attack` y NO hay `physical_attack` explícito,
-  // el `attack` es el componente físico base
   const hasPhysicalExplicit = elements.some(e => e.key === 'physical');
   if (!hasPhysicalExplicit && base !== null) {
     total += base;
@@ -126,20 +119,17 @@ function formatAttack(s) {
   return `⚔️ *Ataque:* ${total} (${parts.join(', ')})\n`;
 }
 
-// 🧠 parse stats
 function parseStats(raw) {
   return {
     name:            getMulti(raw, ['name']),
     itemid:          getMulti(raw, ['itemid']),
     attack:          getMulti(raw, ['attack']),
-    // ── elementos ──
     physical_attack: getMulti(raw, ['physical_attack']),
     energy_attack:   getMulti(raw, ['energy_attack']),
     fire_attack:     getMulti(raw, ['fire_attack']),
     ice_attack:      getMulti(raw, ['ice_attack']),
     earth_attack:    getMulti(raw, ['earth_attack']),
     death_attack:    getMulti(raw, ['death_attack']),
-    // ───────────────
     defense:         getMulti(raw, ['defense']),
     defensemod:      getMulti(raw, ['defensemod']),
     armor:           getMulti(raw, ['armor']),
@@ -169,8 +159,6 @@ function parseStats(raw) {
   };
 }
 
-// 🚀 Prueba una lista de candidatos EN PARALELO y devuelve el primero
-// válido respetando el orden de prioridad del array.
 async function tryCandidates(candidates) {
   if (!candidates.length) return null;
 
@@ -187,6 +175,9 @@ async function tryCandidates(candidates) {
 }
 
 module.exports = async (msg) => {
+  const T = Date.now();
+  const mark = (label) => console.log(`⏱️  [ITEM] ${label}: ${Date.now() - T}ms`);
+
   try {
     const args = msg.body.split(' ').slice(1);
 
@@ -201,6 +192,7 @@ module.exports = async (msg) => {
     const normalizedQuery = query.toLowerCase().trim();
 
     const results = await fandom.search(query);
+    mark('después de search()');
 
     if (!results.length) {
       const errorMsg = await msg.reply('No encontrado.');
@@ -211,18 +203,17 @@ module.exports = async (msg) => {
 
     const blacklist = ['quest', 'outfit', 'mount', 'achievement'];
 
-    // 🔥 1. Candidatos con MATCH EXACTO (máxima prioridad)
     const exactMatches = results.filter(
       r => r.title.toLowerCase().trim() === normalizedQuery
     );
 
-    // 🔁 2. Candidatos de FALLBACK (sin blacklist)
     const fallbackCandidates = results.filter(
       r => !blacklist.some(w => r.title.toLowerCase().includes(w))
     );
 
     let found = await tryCandidates(exactMatches);
     if (!found) found = await tryCandidates(fallbackCandidates);
+    mark('después de tryCandidates() (getPage)');
 
     if (!found) {
       const errorMsg = await msg.reply('No se encontró un ítem válido.');
@@ -233,6 +224,7 @@ module.exports = async (msg) => {
 
     const { title, content } = found;
     const s = parseStats(content);
+    mark('después de parseStats()');
 
     let text = `📦 *${s.name || query}*\n\n`;
     if (s.itemid)      text += `🆔 *ID:* ${s.itemid}\n`;
@@ -242,7 +234,6 @@ module.exports = async (msg) => {
     if (s.imbueslots)  text += `💠 *Imbuición máxima:* ${s.imbueslots}\n`;
     if (s.upgradeclass) text += `⬆️ *Clasificación:* ${s.upgradeclass}\n`;
 
-    // ⚔️ ATAQUE — usa formatAttack para manejar elementos
     text += formatAttack(s);
 
     if (s.damagerange)
@@ -283,7 +274,11 @@ module.exports = async (msg) => {
 
     text += `\n🔎 https://tibia.fandom.com/wiki/${title}`;
 
-    return msg.reply(text);
+    mark('después de construir el texto (justo antes de msg.reply)');
+    const result = await msg.reply(text);
+    mark('después de msg.reply() ← si el salto grande está aquí, es whatsapp-web.js');
+
+    return result;
 
   } catch (err) {
     console.log('❌ ERROR:', err.message);
