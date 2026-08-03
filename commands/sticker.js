@@ -66,9 +66,9 @@ function encodeToWebp(inputPath, outputPath, { animated, fps, quality, compressi
 // y con más fps (más fluido) porque acortamos la duración para compensar peso.
 async function convertToWebpAnimated(inputPath, id) {
     const attempts = [
-        { fps: 13, quality: 42 },
-        { fps: 10, quality: 30 },
-        { fps: 8,  quality: 18 },
+        { fps: 15, quality: 45 },
+        { fps: 12, quality: 32 },
+        { fps: 8,  quality: 20 },
     ];
 
     let lastBuffer = null;
@@ -79,7 +79,7 @@ async function convertToWebpAnimated(inputPath, id) {
 
         const buffer = await encodeToWebp(inputPath, outputPath, {
             animated: true,
-            duration: 5, // duración fija solicitada
+            duration: 4, // antes 5s — más margen de tamaño para subir fps
             fps: attempt.fps,
             quality: attempt.quality,
             compressionLevel: 4, // antes 6 — encode notablemente más rápido
