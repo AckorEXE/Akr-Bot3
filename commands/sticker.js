@@ -1,7 +1,6 @@
 const { MessageMedia } = require('whatsapp-web.js');
 const ffmpeg = require('fluent-ffmpeg');
 const ffmpegPath = require('ffmpeg-static');
-const { PassThrough } = require('stream');
 const fs = require('fs');
 const path = require('path');
 ffmpeg.setFfmpegPath(ffmpegPath);
@@ -13,17 +12,14 @@ const HARD_CAP = 550 * 1024;
 
 const CROP = "crop=min(iw\\,ih):min(iw\\,ih):(iw-min(iw\\,ih))/2:(ih-min(iw\\,ih))/2";
 
-// 🔥 Corre ffmpeg y devuelve el resultado directo en memoria (sin escribir
-// el .webp a disco, sin volver a leerlo). Esto elimina 2 operaciones de I/O
-// por cada intento de conversión.
-function encodeToWebp(inputPath, { animated, fps, quality, compressionLevel, duration }) {
+// 🔥 Corre ffmpeg y devuelve el resultado como Buffer.
+// NOTA: el output SÍ se escribe a disco (a diferencia de un intento anterior
+// que lo mandaba por pipe). El contenedor WebP necesita "seek" hacia atrás
+// para reescribir su header con el tamaño final una vez termina de codificar
+// — eso es imposible en un stream/pipe, y produce archivos corruptos que
+// whatsapp-web.js no puede leer ("Reached end while reading chunk header").
+function encodeToWebp(inputPath, outputPath, { animated, fps, quality, compressionLevel, duration }) {
     return new Promise((resolve, reject) => {
-        const chunks = [];
-        const output = new PassThrough();
-        output.on('data', (chunk) => chunks.push(chunk));
-        output.on('end', () => resolve(Buffer.concat(chunks)));
-        output.on('error', reject);
-
         const vf = animated
             ? `${CROP},scale=512:512,fps=${fps}`
             : `${CROP},scale=512:512`;
@@ -48,9 +44,19 @@ function encodeToWebp(inputPath, { animated, fps, quality, compressionLevel, dur
 
         command
             .outputOptions(outputOptions)
-            .format('webp')
-            .on('error', reject)
-            .pipe(output, { end: true });
+            .toFormat('webp')
+            .save(outputPath)
+            .on('end', () => {
+                try {
+                    const buffer = fs.readFileSync(outputPath);
+                    resolve(buffer);
+                } catch (err) {
+                    reject(err);
+                } finally {
+                    try { fs.unlinkSync(outputPath); } catch {}
+                }
+            })
+            .on('error', reject);
     });
 }
 
@@ -58,7 +64,7 @@ function encodeToWebp(inputPath, { animated, fps, quality, compressionLevel, dur
 // Antes: hasta 6 encodes completos (calidad 60→10 de 10 en 10).
 // Ahora: hasta 3, empezando en un preset que casi siempre pasa a la primera,
 // y con más fps (más fluido) porque acortamos la duración para compensar peso.
-async function convertToWebpAnimated(inputPath) {
+async function convertToWebpAnimated(inputPath, id) {
     const attempts = [
         { fps: 15, quality: 45 },
         { fps: 12, quality: 32 },
@@ -67,8 +73,11 @@ async function convertToWebpAnimated(inputPath) {
 
     let lastBuffer = null;
 
-    for (const attempt of attempts) {
-        const buffer = await encodeToWebp(inputPath, {
+    for (let i = 0; i < attempts.length; i++) {
+        const attempt = attempts[i];
+        const outputPath = path.join(__dirname, `output_${id}_${i}.webp`);
+
+        const buffer = await encodeToWebp(inputPath, outputPath, {
             animated: true,
             duration: 4, // antes 5s — más margen de tamaño para subir fps
             fps: attempt.fps,
@@ -88,8 +97,9 @@ async function convertToWebpAnimated(inputPath) {
 }
 
 // 🖼️ IMAGEN → WEBP estático cuadrado (sin cambios de calidad, solo sin disco)
-async function convertToWebpStatic(inputPath) {
-    return encodeToWebp(inputPath, {
+async function convertToWebpStatic(inputPath, id) {
+    const outputPath = path.join(__dirname, `output_${id}.webp`);
+    return encodeToWebp(inputPath, outputPath, {
         animated: false,
         quality: 80,
         compressionLevel: 4,
@@ -141,9 +151,9 @@ module.exports = async (msg) => {
         let webpBuffer = null;
 
         if (isVideo || isGif) {
-            webpBuffer = await convertToWebpAnimated(inputPath);
+            webpBuffer = await convertToWebpAnimated(inputPath, id);
         } else {
-            webpBuffer = await convertToWebpStatic(inputPath);
+            webpBuffer = await convertToWebpStatic(inputPath, id);
         }
 
         // ❌ No se pudo comprimir dentro del límite → falla
