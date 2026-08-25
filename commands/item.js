@@ -244,8 +244,8 @@ module.exports = async (msg) => {
     text += formatAttack(s);
 
     // ⚔️🎯 Atk Modifier / Hit% Modifier
-    if (s.atk_mod) text += `⚔️ *Atk Modifier:* ${s.atk_mod}%\n`;
-    if (s.hit_mod) text += `🎯 *Hit% Modifier:* ${s.hit_mod}\n`;
+    if (s.atk_mod) text += `⚔️ *Ataque:* +${s.atk_mod}\n`;
+    if (s.hit_mod) text += `🎯 *Porcentaje de hit:* ${s.hit_mod}%\n`;
 
     if (s.damagerange)
       text += `💥 *Daño:* ${s.damagerange} (${s.damagetype || ''})\n`;
