@@ -85,6 +85,8 @@ const ELEMENT_EMOJI = {
   death:    '💀',
 };
 
+// ⚔️ formatear línea de ataque con elementos
+// Resultado ejemplo: ⚔️ *Ataque:* 57 (⚡ +47 energy, 👊🏻 +10 physical)
 function formatAttack(s) {
   const base = s.attack ? parseInt(s.attack) : null;
 
@@ -97,10 +99,13 @@ function formatAttack(s) {
     { key: 'death',    val: s.death_attack },
   ].filter(e => e.val !== null && e.val !== undefined);
 
+  // Sin daño elemental → mostrar normal
   if (!elements.length) {
     return base !== null ? `⚔️ *Ataque:* ${base}\n` : '';
   }
 
+  // Calcular total: base (physical puro) + todos los elementales
+  // Si hay physical_attack separado, usarlo; si no, base es el físico base
   let total = 0;
   const parts = [];
 
@@ -110,6 +115,8 @@ function formatAttack(s) {
     parts.push(`${ELEMENT_EMOJI[e.key]} +${num} ${e.key}`);
   }
 
+  // Si hay `attack` y NO hay `physical_attack` explícito,
+  // el `attack` es el componente físico base
   const hasPhysicalExplicit = elements.some(e => e.key === 'physical');
   if (!hasPhysicalExplicit && base !== null) {
     total += base;
@@ -119,17 +126,22 @@ function formatAttack(s) {
   return `⚔️ *Ataque:* ${total} (${parts.join(', ')})\n`;
 }
 
+// 🧠 parse stats
 function parseStats(raw) {
   return {
     name:            getMulti(raw, ['name']),
     itemid:          getMulti(raw, ['itemid']),
     attack:          getMulti(raw, ['attack']),
+    // ── elementos ──
     physical_attack: getMulti(raw, ['physical_attack']),
     energy_attack:   getMulti(raw, ['energy_attack']),
     fire_attack:     getMulti(raw, ['fire_attack']),
     ice_attack:      getMulti(raw, ['ice_attack']),
     earth_attack:    getMulti(raw, ['earth_attack']),
     death_attack:    getMulti(raw, ['death_attack']),
+    // ───────────────
+    atk_mod:         getMulti(raw, ['atk_mod']),
+    hit_mod:         getMulti(raw, ['hit_mod']),
     defense:         getMulti(raw, ['defense']),
     defensemod:      getMulti(raw, ['defensemod']),
     armor:           getMulti(raw, ['armor']),
@@ -228,7 +240,12 @@ module.exports = async (msg) => {
     if (s.imbueslots)  text += `💠 *Imbuición máxima:* ${s.imbueslots}\n`;
     if (s.upgradeclass) text += `⬆️ *Clasificación:* ${s.upgradeclass}\n`;
 
+    // ⚔️ ATAQUE — usa formatAttack para manejar elementos
     text += formatAttack(s);
+
+    // ⚔️🎯 Atk Modifier / Hit% Modifier
+    if (s.atk_mod) text += `⚔️ *Atk Modifier:* ${s.atk_mod}%\n`;
+    if (s.hit_mod) text += `🎯 *Hit% Modifier:* ${s.hit_mod}\n`;
 
     if (s.damagerange)
       text += `💥 *Daño:* ${s.damagerange} (${s.damagetype || ''})\n`;
