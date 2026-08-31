@@ -90,7 +90,7 @@ module.exports = async (msg) => {
         const guild = await fetchGuildViaBrowser(msg.client, guildName);
 
         if (!guild || !Array.isArray(guild.members)) {
-            const errorMsg = await asyncReply(msg, `❌ No se encontró la guild *${guildName}* en RubinOT.`);
+            const errorMsg = await asyncReply(msg, `No se encontró la guild *${guildName}* en RubinOT.`);
             await asyncReact(errorMsg, '❎');
             await asyncReact(msg, '❎');
             return null;
@@ -101,7 +101,7 @@ module.exports = async (msg) => {
             return b.level - a.level;
         });
 
-        let text = `🛡️ *Guild:* ${guild.name}\n`;
+        let text = `🔰 *Guild:* ${guild.name}\n`;
         text += `🌍 *Mundo:* ${guild.worldName}\n`;
         text += `👥 *Miembros:* ${guild.members.length}\n`;
         if (guild.residence?.name) {
@@ -126,8 +126,8 @@ module.exports = async (msg) => {
         return asyncReply(msg, text.trim());
 
     } catch (err) {
-        console.log('❌ ERROR rguild:', err.message);
-        const errorMsg = await asyncReply(msg, `❌ No se encontró la guild *${guildName}* en RubinOT.`);
+        console.log('ERROR rguild:', err.message);
+        const errorMsg = await asyncReply(msg, `No se encontró la guild *${guildName}* en RubinOT.`);
         await asyncReact(errorMsg, '❎');
         await asyncReact(msg, '❎');
         return null;
