@@ -19,6 +19,7 @@ module.exports = async (msg) => {
 
 ⭐ *RubinOT*  
 ├🔰 *!rguild* <nombre>
+├🔰 *!rstats* <nombre>
 ├🔰 *!rchar* <nombre>
 
 📥 *Descargas*  
