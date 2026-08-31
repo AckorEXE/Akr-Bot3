@@ -32,6 +32,9 @@ const commandEmojis = {
     elfbot: '🧩',
     client860: '🧩',
     helper: '🧩',
+
+   // rubinot
+    rguild: '🔰',
 };
 
 
@@ -39,15 +42,16 @@ const adminOnlyCommands = ['mp', 'kick', 'link'];
 
 const cooldownCommands = {
     mp: 10,
-    link: 10,
-    kick: 10,
-    sticker: 5,
-    item: 5,
-    monster: 5,
-    rashid: 5,
-    imbuement: 5,
-    shared: 5,
-    media: 5
+    link: 3,
+    kick: 3,
+    sticker: 3,
+    item: 3,
+    monster: 3,
+    rashid: 3,
+    imbuement: 3,
+    shared: 3,
+    media: 3,
+    rguild: 3,
 };
 
 // cooldowns[userId][command] = { last, warned }
@@ -181,27 +185,38 @@ const client860 = require('./commands/client860');
 const helper = require('./commands/helper');
 const imbuement = require('./commands/imbuements');
 const media = require('./commands/media');
+const rguild = require('./commands/rguild');
 
 const commands = {
+    // 💛 Menú / ayuda
     menu,
     commands: menu,
     help: menu,
+
+    // 📂 Grupos
     mp,
     link,
     kick,
-    shared,
+
+    // 🎨 Multimedia
+    sticker,
+    s: sticker,
+    media,
+
+    // 🐉 Tibia
     item,
     monster,
+    shared,
     rashid,
     imbuement,
 
-    sticker,
-    s: sticker,
+   // Rubinot
+   rguild,
 
+    // 📥 Descargas
     elfbot,
     client860,
-    helper,
-    media
+    helper
 };
 
 /* =========================
