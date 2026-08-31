@@ -20,6 +20,12 @@ function normalizeWorld(input) {
     return input.charAt(0).toUpperCase() + input.slice(1).toLowerCase();
 }
 
+// La API devuelve el nombre tal cual lo buscó el usuario (ej. "null byte").
+// Lo normalizamos a Title Case para mostrarlo bonito: "Null Byte".
+function titleCase(str) {
+    return str.replace(/\w\S*/g, w => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase());
+}
+
 // RubinotTools usa el ciclo mensual con corte a las 00:00 hora de Brasilia (UTC-3).
 function getCurrentMonthYear() {
     const now = new Date();
@@ -110,7 +116,7 @@ function formatVictims(victims, limit = 5) {
     const sorted = [...victims].sort((a, b) => new Date(b.last_kill) - new Date(a.last_kill));
 
     return sorted.slice(0, limit)
-        .map(v => `🗓️ ${formatDateTime(v.last_kill)} — ${v.target_name} (Lv${v.level})`)
+        .map(v => `🗓️ ${formatDateTime(v.last_kill)} — ${v.target_name} (${v.level})`)
         .join('\n') + '\n';
 }
 
@@ -120,7 +126,7 @@ function formatKillers(killers, limit = 5) {
     const sorted = [...killers].sort((a, b) => new Date(b.last_death) - new Date(a.last_death));
 
     return sorted.slice(0, limit)
-        .map(k => `🗓️ ${formatDateTime(k.last_death)} — ${k.killer_name} (Lv${k.level})`)
+        .map(k => `🗓️ ${formatDateTime(k.last_death)} — ${k.killer_name} (${k.level})`)
         .join('\n') + '\n';
 }
 
@@ -196,8 +202,8 @@ module.exports = async (msg) => {
         const { world, data } = result;
         const s = data.stats;
 
-        let text = `👤 *${s.name}*\n`;
-        text += `🏅 Rank #${s.rank}  ·  🛡️ ${s.guild}  ·  ⭐ Lv ${s.level}\n`;
+        let text = `👤 *${titleCase(s.name)}*\n`;
+        text += `🏅 Rank #${s.rank}  ·  ⭐ Lvl ${s.level}\n🛡️ ${s.guild ? s.guild : 'Sin Guild'}\n`;
         text += `🌍 ${world} · 🗓️ ${getCycleLabel(month, year)}\n\n`;
 
         text += `🏆 Puntuación total: ${s.final_score}\n`;
