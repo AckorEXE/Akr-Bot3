@@ -29,6 +29,26 @@ function formatDeath(d) {
     return text;
 }
 
+// 🏘️ La casa viene como objeto { id, name, town_id, rent, size } o null
+function formatHouse(house) {
+    if (!house) return null;
+    if (typeof house === 'string') return house;
+    if (typeof house === 'object' && house.name) return house.name;
+    return null;
+}
+
+// 🟢🔴 Solo se puede determinar buscando al propio personaje dentro de
+// otherCharacters (aparece si la cuenta tiene más de un char y no está oculta).
+// Si no aparece (ej. char único, o isHidden), no hay dato → usar emoji neutro.
+function statusEmoji(player, otherCharacters) {
+    if (!Array.isArray(otherCharacters) || !otherCharacters.length) return '👤';
+
+    const self = otherCharacters.find(c => c.name === player.name);
+    if (!self || typeof self.isOnline !== 'boolean') return '👤';
+
+    return self.isOnline ? '🟢' : '🔴';
+}
+
 async function asyncReply(msg, text) {
     try { return await msg.reply(text); } catch { return null; }
 }
@@ -59,7 +79,8 @@ module.exports = async (msg) => {
             return null;
         }
 
-        let text = `👤 *${player.name}*\n`;
+        const emoji = statusEmoji(player, data.otherCharacters);
+        let text = `${emoji} *${player.name}*\n`;
 
         if (data.foundByOldName) {
             text += `🔎 _Encontrado por nombre anterior_\n`;
@@ -78,7 +99,8 @@ module.exports = async (msg) => {
             text += `🛡️ Guild: ${player.guild.name}${player.guild.rank ? ` (${player.guild.rank})` : ''}\n`;
         }
 
-        if (player.house) text += `🏘️ Casa: ${player.house}\n`;
+        const houseText = formatHouse(player.house);
+        if (houseText) text += `🏘️ Casa: ${houseText}\n`;
 
         if (Array.isArray(player.formerNames) && player.formerNames.length) {
             text += `📛 Nombre(s) anterior(es): ${player.formerNames.join(', ')}\n`;
