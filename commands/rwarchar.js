@@ -203,7 +203,7 @@ module.exports = async (msg) => {
         const s = data.stats;
 
         let text = `👤 *${titleCase(s.name)}*\n`;
-        text += `🏅 Rank #${s.rank}  ·  ⭐ Lvl ${s.level}\n🛡️ ${s.guild ? s.guild : 'Sin Guild'}\n`;
+        text += `🏅 Rank #${s.rank}  ·  ⭐ Nivel: ${s.level}\n🛡️ ${s.guild ? s.guild : 'Sin Guild'}\n`;
         text += `🌍 ${world} · 🗓️ ${getCycleLabel(month, year)}\n\n`;
 
         text += `🏆 Puntuación total: ${s.final_score}\n`;
