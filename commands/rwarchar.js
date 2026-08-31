@@ -33,11 +33,17 @@ function getCycleLabel(month, year) {
     return label.charAt(0).toUpperCase() + label.slice(1);
 }
 
-function formatShortDate(iso) {
-    return new Date(iso).toLocaleDateString('es-MX', {
+function formatDateTime(iso) {
+    const d = new Date(iso);
+    const datePart = d.toLocaleDateString('es-MX', {
         day: '2-digit', month: '2-digit',
         timeZone: 'America/Sao_Paulo'
     });
+    const timePart = d.toLocaleTimeString('es-MX', {
+        hour: '2-digit', minute: '2-digit', hour12: true,
+        timeZone: 'America/Sao_Paulo'
+    });
+    return `${datePart}, ${timePart}`;
 }
 
 function hasData(data) {
@@ -98,15 +104,24 @@ async function findCharacterAcrossWorlds(name, month, year) {
    FORMATO DEL MENSAJE
 ========================= */
 
-function formatList(items, dateField, nameField, limit = 5) {
-    if (!Array.isArray(items) || !items.length) return '  _Sin registros_\n';
+function formatVictims(victims, limit = 5) {
+    if (!Array.isArray(victims) || !victims.length) return '_Sin registros_\n';
 
-    const sorted = [...items].sort((a, b) => new Date(b[dateField]) - new Date(a[dateField]));
+    const sorted = [...victims].sort((a, b) => new Date(b.last_kill) - new Date(a.last_kill));
 
-    return sorted.slice(0, limit).map(it => {
-        const sign = it.score >= 0 ? '+' : '';
-        return `  Lv${it.level} · ${formatShortDate(it[dateField])} — ${it[nameField]} (${sign}${it.score})`;
-    }).join('\n') + '\n';
+    return sorted.slice(0, limit)
+        .map(v => `🗓️ ${formatDateTime(v.last_kill)} — ${v.target_name} (Lv${v.level})`)
+        .join('\n') + '\n';
+}
+
+function formatKillers(killers, limit = 5) {
+    if (!Array.isArray(killers) || !killers.length) return '_Sin registros_\n';
+
+    const sorted = [...killers].sort((a, b) => new Date(b.last_death) - new Date(a.last_death));
+
+    return sorted.slice(0, limit)
+        .map(k => `🗓️ ${formatDateTime(k.last_death)} — ${k.killer_name} (Lv${k.level})`)
+        .join('\n') + '\n';
 }
 
 async function asyncReply(msg, text) {
@@ -192,10 +207,10 @@ module.exports = async (msg) => {
         text += `📊 Nivel prom. víctimas: ${s.avg_victim_level}\n`;
 
         text += `\n🗡️ *Últimas víctimas*\n`;
-        text += formatList(data.victims, 'last_kill', 'target_name');
+        text += formatVictims(data.victims);
 
         text += `\n☠️ *Últimas muertes*\n`;
-        text += formatList(data.killers, 'last_death', 'killer_name');
+        text += formatKillers(data.killers);
 
         return asyncReply(msg, text.trim());
 
