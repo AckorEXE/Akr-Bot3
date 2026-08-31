@@ -1,4 +1,4 @@
-// commands/rchar.js
+// commands/rcharacter.js
 
 const VOCATIONS = {
     0:  { name: 'None',            emoji: '❔' },
@@ -33,14 +33,13 @@ async function asyncReact(target, emoji) {
     try { await target.react(emoji); } catch {}
 }
 
-// 🔎 Igual que en rguild.js: usamos el navegador de whatsapp-web.js para pasar Cloudflare
 async function fetchCharacterViaBrowser(client, charName) {
     const page = await client.pupBrowser.newPage();
 
     try {
         let charData = null;
         let apiError = null;
-        let rawJson = null; // 🐛 para debug si los campos no coinciden
+        let rawJson = null;
 
         await page.setRequestInterception(true);
         page.on('request', (req) => {
@@ -52,7 +51,15 @@ async function fetchCharacterViaBrowser(client, charName) {
         });
 
         page.on('response', async (response) => {
-            if (!response.url().includes('/api/characters/')) return;
+            const url = response.url();
+
+            // 🐛 DEBUG: por si la API tampoco es "/api/characters"
+            if (url.includes('/api/')) {
+                console.log('🐛 rcharacter - API detectada:', url);
+            }
+
+            if (!url.includes('/api/characters')) return;
+
             try {
                 const json = await response.json();
                 rawJson = json;
@@ -65,7 +72,8 @@ async function fetchCharacterViaBrowser(client, charName) {
             'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36'
         );
 
-        await page.goto(`https://rubinot.com.br/characters/${encodeURIComponent(charName)}`, {
+        // 🔧 corregido: query string, igual que la página real
+        await page.goto(`https://rubinot.com.br/characters?name=${encodeURIComponent(charName)}`, {
             waitUntil: 'networkidle2',
             timeout: 30000
         });
@@ -74,7 +82,6 @@ async function fetchCharacterViaBrowser(client, charName) {
             await new Promise(resolve => setTimeout(resolve, 3000));
         }
 
-        // 🐛 DEBUG: si no se pudo armar charData pero sí llegó JSON, lo dejamos en consola
         if (!charData && rawJson) {
             console.log('🐛 rcharacter - JSON crudo recibido (revisar nombres de campos):');
             console.log(JSON.stringify(rawJson, null, 2));
@@ -93,7 +100,7 @@ module.exports = async (msg) => {
     const charName = args.join(' ').trim();
 
     if (!charName) {
-        const errorMsg = await asyncReply(msg, 'Uso correcto: *!rcharacter <nombre>*\nEjemplo: *!rcharacter Null Byte*');
+        const errorMsg = await asyncReply(msg, 'Uso correcto: *!rchar <nombre>*\nEjemplo: *!rchar Null Byte*');
         await asyncReact(errorMsg, '❎');
         await asyncReact(msg, '❎');
         return null;
