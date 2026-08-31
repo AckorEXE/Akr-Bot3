@@ -18,9 +18,10 @@ module.exports = async (msg) => {
 ├🔥 *!imbuement*
 
 ⭐ *RubinOT*  
+├🔰 *!rchar* <nombre>
 ├🔰 *!rguild* <nombre>
 ├🔰 *!rstats* <nombre>
-├🔰 *!rchar* <nombre>
+├🔰 *!rwar* <guild1, guild2>
 
 📥 *Descargas*  
 ├🧩 *!elfbot*  
