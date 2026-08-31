@@ -84,12 +84,12 @@ module.exports = async (msg) => {
         let text = `📊 *Estadísticas Guild: ${guild.name}*\n`;
         text += `👥 Miembros totales: ${members.length}\n`;
 
-        text += `\n🏆 *Top nivel:* ${vocIcon(baseVocation(top.vocation))} ${top.name} ${top.isOnline ? '🟢' : '🔴'} ${top.level}\n`;
-        text += `📉 *Nivel más bajo:* ${vocIcon(baseVocation(lowest.vocation))} ${lowest.name} ${lowest.isOnline ? '🟢' : '🔴'} ${lowest.level}\n`;
+        text += `\n🏆 *Top nivel:* ${top.name} · ${top.level} · ${vocIcon(baseVocation(top.vocation))}${top.isOnline ? '🟢' : '🔴'}\n`;
+        text += `📉 *Nivel más bajo:* ${lowest.name} · ${lowest.level} · ${vocIcon(baseVocation(lowest.vocation))}${lowest.isOnline ? '🟢' : '🔴'}\n`;
         text += `⚖️ *Nivel promedio:* ${avg}\n`;
         text += `📐 *Mediana de nivel:* ${med}\n`;
-        text += `📈 Sobre el promedio: ${above}\n`;
-        text += `📉 Bajo el promedio: ${below}\n`;
+        text += `📈 *Sobre el promedio:* ${above}\n`;
+        text += `📉 *Bajo el promedio:* ${below}\n`;
 
         text += `\n🧙 *Vocaciones:*\n`;
         const vocOrder = ['Knight', 'Paladin', 'Druid', 'Sorcerer', 'Monk', 'Otro'];
@@ -99,13 +99,17 @@ module.exports = async (msg) => {
             }
         }
 
-        text += `\n🟢 Conectados: ${online}\n`;
-        text += `🔴 Desconectados: ${offline}\n`;
+        text += `\n🟢 *Conectados:* ${online}\n`;
+        text += `🔴 *Desconectados:* ${offline}\n`;
 
         text += `\n📜 *Rangos:*\n`;
-        text += Object.entries(rankCount)
-            .sort((a, b) => b[1] - a[1])
-            .map(([rank, count]) => `${rank}: ${count}`)
+        const rankOrder = ['Leader', 'Vice Leader', 'Member'];
+        const orderedRanks = [
+            ...rankOrder.filter(r => rankCount[r]),
+            ...Object.keys(rankCount).filter(r => !rankOrder.includes(r))
+        ];
+        text += orderedRanks
+            .map(rank => `${rank}: ${rankCount[rank]}`)
             .join(' | ');
 
         return asyncReply(msg, text.trim());
