@@ -38,6 +38,7 @@ const commandEmojis = {
     rchar: '🔰',
     rstats: '🔰',
     rwar: '🔰',
+    rwachar: '🔰',
 };
 
 
@@ -58,6 +59,7 @@ const cooldownCommands = {
     rchar: 3,
     rstats: 3,
     rwar: 3,
+    rwarchar: 3,
 };
 
 // cooldowns[userId][command] = { last, warned }
@@ -195,6 +197,7 @@ const rguild = require('./commands/rguild');
 const rchar = require('./commands/rchar');
 const rstats = require('./commands/rstats');
 const rwar = require('./commands/rwar');
+const rwarchar = require('./commands/rwarchar');
 
 const commands = {
     // 💛 Menú / ayuda
@@ -224,6 +227,7 @@ const commands = {
    rchar,
    rstats,
    rwar,
+   rwarchar,
 
     // 📥 Descargas
     elfbot,
