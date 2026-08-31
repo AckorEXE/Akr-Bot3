@@ -33,7 +33,6 @@ async function fetchGuildViaBrowser(client, guildName) {
         let guildData = null;
         let apiError = null;
 
-        // 🚫 Bloquear imágenes/fuentes/media para que cargue más rápido
         await page.setRequestInterception(true);
         page.on('request', (req) => {
             if (['image', 'media', 'font'].includes(req.resourceType())) {
@@ -43,7 +42,6 @@ async function fetchGuildViaBrowser(client, guildName) {
             }
         });
 
-        // 📡 Interceptar la respuesta real de la API mientras la página carga
         page.on('response', async (response) => {
             if (!response.url().includes('/api/guilds/')) return;
             try {
@@ -62,7 +60,6 @@ async function fetchGuildViaBrowser(client, guildName) {
             timeout: 30000
         });
 
-        // ⏳ margen extra por si el challenge tarda en resolverse
         if (!guildData && !apiError) {
             await new Promise(resolve => setTimeout(resolve, 3000));
         }
@@ -117,10 +114,10 @@ module.exports = async (msg) => {
                 const rankEmoji = m.rankLevel === 3 ? '🧙' : m.rankLevel === 2 ? '👑' : '🛡';
                 text += `\n${rankEmoji} *${currentRank}*\n`;
             }
+            // 🔧 bullet "•" para TODOS (incluyendo Leader), sin asteriscos sueltos
             const voc = getVocation(m.vocation);
             const status = m.isOnline ? '🟢' : '🔴';
-            const prefix = m.rankLevel === 3 ? '' : '* ';
-            text += `${prefix}${m.name} · ${m.level} · ${voc.emoji}${status}\n`;
+            text += `• ${m.name} · ${m.level} · ${voc.emoji}${status}\n`;
         }
 
         return asyncReply(msg, text.trim());
