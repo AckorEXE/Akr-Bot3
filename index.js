@@ -188,7 +188,7 @@ const helper = require('./commands/helper');
 const imbuement = require('./commands/imbuements');
 const media = require('./commands/media');
 const rguild = require('./commands/rguild');
-const rguild = require('./commands/rchar');
+const rchar = require('./commands/rchar');
 
 const commands = {
     // 💛 Menú / ayuda
