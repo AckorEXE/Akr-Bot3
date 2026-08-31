@@ -1,7 +1,4 @@
 // commands/rguild.js
-const axios = require('axios');
-
-// 🔮 Mapa de vocaciones de RubinOT (incluye Monk/Exalted Monk)
 const VOCATIONS = {
     0:  { name: 'None',            emoji: '❔' },
     1:  { name: 'Sorcerer',        emoji: '🔥' },
@@ -28,6 +25,56 @@ async function asyncReact(target, emoji) {
     try { await target.react(emoji); } catch {}
 }
 
+// 🔎 Usa el mismo navegador de whatsapp-web.js para pasar el challenge de Cloudflare
+async function fetchGuildViaBrowser(client, guildName) {
+    const page = await client.pupBrowser.newPage();
+
+    try {
+        let guildData = null;
+        let apiError = null;
+
+        // 🚫 Bloquear imágenes/fuentes/media para que cargue más rápido
+        await page.setRequestInterception(true);
+        page.on('request', (req) => {
+            if (['image', 'media', 'font'].includes(req.resourceType())) {
+                req.abort();
+            } else {
+                req.continue();
+            }
+        });
+
+        // 📡 Interceptar la respuesta real de la API mientras la página carga
+        page.on('response', async (response) => {
+            if (!response.url().includes('/api/guilds/')) return;
+            try {
+                const json = await response.json();
+                if (json?.guild) guildData = json.guild;
+                else if (json?.error) apiError = json.error;
+            } catch {}
+        });
+
+        await page.setUserAgent(
+            'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36'
+        );
+
+        await page.goto(`https://rubinot.com.br/guilds/${encodeURIComponent(guildName)}`, {
+            waitUntil: 'networkidle2',
+            timeout: 30000
+        });
+
+        // ⏳ margen extra por si el challenge tarda en resolverse
+        if (!guildData && !apiError) {
+            await new Promise(resolve => setTimeout(resolve, 3000));
+        }
+
+        if (apiError) throw new Error(apiError);
+        return guildData;
+
+    } finally {
+        await page.close();
+    }
+}
+
 module.exports = async (msg) => {
     const args = msg.body.split(' ').slice(1);
     const guildName = args.join(' ').trim();
@@ -40,19 +87,7 @@ module.exports = async (msg) => {
     }
 
     try {
-        const url = `https://rubinot.com.br/api/guilds/${encodeURIComponent(guildName)}`;
-
-        const res = await axios.get(url, {
-            timeout: 15000,
-            headers: {
-                'Referer': `https://rubinot.com.br/guilds/${encodeURIComponent(guildName)}`,
-                'Origin': 'https://rubinot.com.br',
-                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
-                'Accept': 'application/json, text/plain, */*',
-            }
-        });
-
-        const guild = res.data?.guild;
+        const guild = await fetchGuildViaBrowser(msg.client, guildName);
 
         if (!guild || !Array.isArray(guild.members)) {
             const errorMsg = await asyncReply(msg, `❌ No se encontró la guild *${guildName}* en RubinOT.`);
@@ -61,7 +96,6 @@ module.exports = async (msg) => {
             return null;
         }
 
-        // Leader > Vice Leader > Member, y dentro de cada rango por nivel desc
         const ordered = [...guild.members].sort((a, b) => {
             if (b.rankLevel !== a.rankLevel) return b.rankLevel - a.rankLevel;
             return b.level - a.level;
@@ -92,8 +126,7 @@ module.exports = async (msg) => {
         return asyncReply(msg, text.trim());
 
     } catch (err) {
-        console.log('❌ ERROR rguild:', err.response?.status, err.response?.data || err.message);
-
+        console.log('❌ ERROR rguild:', err.message);
         const errorMsg = await asyncReply(msg, `❌ No se encontró la guild *${guildName}* en RubinOT.`);
         await asyncReact(errorMsg, '❎');
         await asyncReact(msg, '❎');
