@@ -1,7 +1,6 @@
-// commands/rcharacter.js
+// commands/rchar.js
+const { fetchCharacter } = require('../utils/rubinotApi');
 
-// 🔮 Aquí vocation viene como texto ("Master Sorcerer"), a diferencia de rguild
-// que la trae como número. Por eso el mapeo es distinto en este comando.
 function vocationEmoji(voc) {
     if (!voc) return '❔';
     const v = voc.toLowerCase();
@@ -17,7 +16,8 @@ function formatDate(unixSeconds) {
     if (!unixSeconds || unixSeconds == 0) return null;
     return new Date(Number(unixSeconds) * 1000).toLocaleDateString('es-MX', {
         day: '2-digit', month: '2-digit', year: 'numeric',
-        hour: '2-digit', minute: '2-digit'
+        hour: '2-digit', minute: '2-digit',
+        timeZone: 'America/Sao_Paulo'
     });
 }
 
@@ -37,50 +37,6 @@ async function asyncReact(target, emoji) {
     try { await target.react(emoji); } catch {}
 }
 
-async function fetchCharacterViaBrowser(client, charName) {
-    const page = await client.pupBrowser.newPage();
-
-    try {
-        let result = null;
-
-        await page.setRequestInterception(true);
-        page.on('request', (req) => {
-            if (['image', 'media', 'font'].includes(req.resourceType())) {
-                req.abort();
-            } else {
-                req.continue();
-            }
-        });
-
-        // 📡 Ruta confirmada: /api/characters/search?name=...
-        page.on('response', async (response) => {
-            if (!response.url().includes('/api/characters/search')) return;
-            try {
-                const json = await response.json();
-                if (json?.player) result = json;
-            } catch {}
-        });
-
-        await page.setUserAgent(
-            'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36'
-        );
-
-        await page.goto(`https://rubinot.com.br/characters?name=${encodeURIComponent(charName)}`, {
-            waitUntil: 'networkidle2',
-            timeout: 30000
-        });
-
-        if (!result) {
-            await new Promise(resolve => setTimeout(resolve, 3000));
-        }
-
-        return result;
-
-    } finally {
-        await page.close();
-    }
-}
-
 module.exports = async (msg) => {
     const args = msg.body.split(' ').slice(1);
     const charName = args.join(' ').trim();
@@ -93,7 +49,7 @@ module.exports = async (msg) => {
     }
 
     try {
-        const data = await fetchCharacterViaBrowser(msg.client, charName);
+        const data = await fetchCharacter(msg.client, charName);
         const player = data?.player;
 
         if (!player || !player.name) {
@@ -105,7 +61,6 @@ module.exports = async (msg) => {
 
         let text = `👤 *${player.name}*\n`;
 
-        // 🔎 Si se encontró por un nombre viejo, avisamos
         if (data.foundByOldName) {
             text += `🔎 _Encontrado por nombre anterior_\n`;
         }
@@ -125,7 +80,6 @@ module.exports = async (msg) => {
 
         if (player.house) text += `🏘️ Casa: ${player.house}\n`;
 
-        // 📛 Nombres anteriores (si el personaje se ha renombrado)
         if (Array.isArray(player.formerNames) && player.formerNames.length) {
             text += `📛 Nombre(s) anterior(es): ${player.formerNames.join(', ')}\n`;
         }
@@ -146,7 +100,7 @@ module.exports = async (msg) => {
         return asyncReply(msg, text.trim());
 
     } catch (err) {
-        console.log('ERROR rcharacter:', err.message);
+        console.log('ERROR rchar:', err.message);
         const errorMsg = await asyncReply(msg, `No se encontró el personaje *${charName}* en RubinOT.`);
         await asyncReact(errorMsg, '❎');
         await asyncReact(msg, '❎');
