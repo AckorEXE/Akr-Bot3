@@ -21,6 +21,12 @@ function normalizeWorld(input) {
     return input.charAt(0).toUpperCase() + input.slice(1).toLowerCase();
 }
 
+// La API de RubinotTools es sensible a mayúsculas en los nombres de guild
+// (ej. "blinders team" no matchea, "Blinders Team" sí). Normalizamos a Title Case.
+function titleCase(str) {
+    return str.replace(/\w\S*/g, w => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase());
+}
+
 // RubinotTools resetea el ciclo mensual a las 00:00 hora de Brasilia (UTC-3),
 // es decir 03:00 UTC. Calculamos el ciclo del mes actual dinámicamente.
 function getCurrentCycle() {
@@ -138,13 +144,13 @@ async function findBattleAcrossWorlds(guild1, guild2) {
 
 function formatGuildBlock(name, stats, emoji) {
     let text = `${emoji} *${name}*\n`;
-    text += `☠️ Kills: ${stats.kills}  |  💀 Deaths: ${stats.deaths}\n`;
-    text += `🏆 Score: ${stats.total_score}  (+${stats.score_gain} / -${stats.score_penalty})\n`;
+    text += `☠️ Asesinatos: ${stats.kills}  |  💀 Muertes: ${stats.deaths}\n`;
+    text += `🏆 Puntuación: ${stats.total_score}  (+${stats.score_gain} / -${stats.score_penalty})\n`;
     if (stats.top_killer?.name) {
-        text += `🎯 Top Killer: ${stats.top_killer.name} (${stats.top_killer.count})\n`;
+        text += `🎯 Top Asesino: ${stats.top_killer.name} (${stats.top_killer.count})\n`;
     }
     if (stats.top_feeder?.name) {
-        text += `🪦 Top Penalty: ${stats.top_feeder.name} (${stats.top_feeder.count})\n`;
+        text += `🪦 Top Asesinado: ${stats.top_feeder.name} (${stats.top_feeder.count})\n`;
     }
     text += `📊 Nivel prom. rival: ${stats.avg_victim_level}\n`;
     return text;
@@ -155,7 +161,7 @@ function formatKillfeed(deaths, limit = 3) {
 
     let text = `\n☠️ *Últimas muertes*\n`;
     deaths.slice(0, limit).forEach(d => {
-        text += `${formatDeathTime(d.death_time)} — ${d.killer_name} ➜ ${d.victim_name} (Lv${d.victim_level}) +${d.frag_score}\n`;
+        text += `🗓️ ${formatDeathTime(d.death_time)} — ${d.killer_name} ➜ ${d.victim_name} (Lv${d.victim_level}) +${d.frag_score}\n`;
     });
     return text;
 }
@@ -177,7 +183,7 @@ module.exports = async (msg) => {
 
     const usage =
         'Uso correcto: *!rwar guild1, guild2, mundo*\n' +
-        'Ejemplo: *!rwar Blinders Team, Warfire Leidorasga, Belaria*\n' +
+        'Ejemplo: *!rwar Blinders Team, Warfire Leidorasga, Drakaria*\n' +
         '_El mundo es opcional — si lo omites, lo busco en todos los mundos._';
 
     if (!body) {
@@ -196,7 +202,9 @@ module.exports = async (msg) => {
         return null;
     }
 
-    const [guild1, guild2, worldRaw] = parts;
+    const [guild1Raw, guild2Raw, worldRaw] = parts;
+    const guild1 = titleCase(guild1Raw);
+    const guild2 = titleCase(guild2Raw);
 
     try {
         let result;
