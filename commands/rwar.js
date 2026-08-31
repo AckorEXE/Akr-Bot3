@@ -95,6 +95,25 @@ async function findBattleAcrossWorlds(guild1, guild2) {
         WORLDS.map(world => fetchBattle(world, guild1, guild2))
     );
 
+    // 🔍 DEBUG: log de cada intento fallido para diagnosticar bloqueos/errores
+    attempts.forEach((a, i) => {
+        if (a.status === 'rejected') {
+            const err = a.reason;
+            console.log(
+                `[rwar DEBUG] ${WORLDS[i]} FALLÓ →`,
+                err.response?.status || err.code || err.message
+            );
+        }
+    });
+
+    const rejectedCount = attempts.filter(a => a.status === 'rejected').length;
+    if (rejectedCount === WORLDS.length) {
+        // Todas las peticiones fallaron (no es que no haya datos, es que la API no respondió)
+        const err = new Error('ALL_REQUESTS_FAILED');
+        err.isAllFailed = true;
+        throw err;
+    }
+
     const valid = attempts
         .filter(a => a.status === 'fulfilled')
         .map(a => a.value)
@@ -233,11 +252,13 @@ module.exports = async (msg) => {
         return asyncReply(msg, text.trim());
 
     } catch (err) {
-        console.log('ERROR rwar:', err.message);
-        const errorMsg = await asyncReply(
-            msg,
-            `No se pudo obtener la guerra entre *${guild1}* y *${guild2}*. Verifica los nombres de las guilds.`
-        );
+        console.log('ERROR rwar:', err.response?.status || err.code || err.message);
+
+        const failMessage = err.isAllFailed
+            ? `No se pudo contactar la API de RubinotTools ahora mismo. Intenta de nuevo en un momento.`
+            : `No se pudo obtener la guerra entre *${guild1}* y *${guild2}*. Verifica los nombres de las guilds.`;
+
+        const errorMsg = await asyncReply(msg, failMessage);
         await asyncReact(errorMsg, '❎');
         await asyncReact(msg, '❎');
         return null;
