@@ -1,4 +1,6 @@
 // commands/rguild.js
+const { fetchGuild } = require('../utils/rubinotApi');
+
 const VOCATIONS = {
     0:  { name: 'None',            emoji: '❔' },
     1:  { name: 'Sorcerer',        emoji: '🔥' },
@@ -25,53 +27,6 @@ async function asyncReact(target, emoji) {
     try { await target.react(emoji); } catch {}
 }
 
-// 🔎 Usa el mismo navegador de whatsapp-web.js para pasar el challenge de Cloudflare
-async function fetchGuildViaBrowser(client, guildName) {
-    const page = await client.pupBrowser.newPage();
-
-    try {
-        let guildData = null;
-        let apiError = null;
-
-        await page.setRequestInterception(true);
-        page.on('request', (req) => {
-            if (['image', 'media', 'font'].includes(req.resourceType())) {
-                req.abort();
-            } else {
-                req.continue();
-            }
-        });
-
-        page.on('response', async (response) => {
-            if (!response.url().includes('/api/guilds/')) return;
-            try {
-                const json = await response.json();
-                if (json?.guild) guildData = json.guild;
-                else if (json?.error) apiError = json.error;
-            } catch {}
-        });
-
-        await page.setUserAgent(
-            'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36'
-        );
-
-        await page.goto(`https://rubinot.com.br/guilds/${encodeURIComponent(guildName)}`, {
-            waitUntil: 'networkidle2',
-            timeout: 30000
-        });
-
-        if (!guildData && !apiError) {
-            await new Promise(resolve => setTimeout(resolve, 3000));
-        }
-
-        if (apiError) throw new Error(apiError);
-        return guildData;
-
-    } finally {
-        await page.close();
-    }
-}
-
 module.exports = async (msg) => {
     const args = msg.body.split(' ').slice(1);
     const guildName = args.join(' ').trim();
@@ -84,7 +39,7 @@ module.exports = async (msg) => {
     }
 
     try {
-        const guild = await fetchGuildViaBrowser(msg.client, guildName);
+        const guild = await fetchGuild(msg.client, guildName);
 
         if (!guild || !Array.isArray(guild.members)) {
             const errorMsg = await asyncReply(msg, `No se encontró la guild *${guildName}* en RubinOT.`);
@@ -114,7 +69,6 @@ module.exports = async (msg) => {
                 const rankEmoji = m.rankLevel === 3 ? '🧙' : m.rankLevel === 2 ? '👑' : '🛡';
                 text += `\n${rankEmoji} *${currentRank}*\n`;
             }
-            // 🔧 bullet "•" para TODOS (incluyendo Leader), sin asteriscos sueltos
             const voc = getVocation(m.vocation);
             const status = m.isOnline ? '🟢' : '🔴';
             text += `• ${m.name} · ${m.level} · ${voc.emoji}${status}\n`;
