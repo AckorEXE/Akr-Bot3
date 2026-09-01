@@ -156,12 +156,19 @@ function formatGuildBlock(name, stats, emoji) {
     return text;
 }
 
-function formatKillfeed(deaths, limit = 3) {
+function guildEmoji(guildName, guild1, guild2) {
+    if (guildName === guild1) return '🟩';
+    if (guildName === guild2) return '🟥';
+    return '';
+}
+
+function formatKillfeed(deaths, guild1, guild2, limit = 5) {
     if (!Array.isArray(deaths) || !deaths.length) return '';
 
     let text = `\n☠️ *Últimas muertes*\n`;
     deaths.slice(0, limit).forEach(d => {
-        text += `🗓️ ${formatDeathTime(d.death_time)} — ${d.killer_name} ➜ ${d.victim_name} (Lv${d.victim_level}) +${d.frag_score}\n`;
+        const emoji = guildEmoji(d.killer_guild, guild1, guild2);
+        text += `🗓️ ${formatDeathTime(d.death_time)} — ${emoji} ${d.killer_name} ➜ ${d.victim_name} (${d.victim_level}) +${d.frag_score}\n`;
     });
     return text;
 }
@@ -255,7 +262,7 @@ module.exports = async (msg) => {
             text += `🤝 Empate en score.\n`;
         }
 
-        text += formatKillfeed(data.deaths);
+        text += formatKillfeed(data.deaths, guild1, guild2);
 
         return asyncReply(msg, text.trim());
 
