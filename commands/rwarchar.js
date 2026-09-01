@@ -116,7 +116,10 @@ function formatVictims(victims, limit = 5) {
     const sorted = [...victims].sort((a, b) => new Date(b.last_kill) - new Date(a.last_kill));
 
     return sorted.slice(0, limit)
-        .map(v => `🗓️ ${formatDateTime(v.last_kill)} — ${v.target_name} (${v.level})`)
+        .map(v => {
+            const sign = v.score >= 0 ? '+' : '';
+            return `🗓️ ${formatDateTime(v.last_kill)} — ${v.target_name} (${v.level}) ${sign}${v.score}`;
+        })
         .join('\n') + '\n';
 }
 
@@ -126,7 +129,10 @@ function formatKillers(killers, limit = 5) {
     const sorted = [...killers].sort((a, b) => new Date(b.last_death) - new Date(a.last_death));
 
     return sorted.slice(0, limit)
-        .map(k => `🗓️ ${formatDateTime(k.last_death)} — ${k.killer_name} (${k.level})`)
+        .map(k => {
+            const sign = k.score >= 0 ? '+' : '';
+            return `🗓️ ${formatDateTime(k.last_death)} — ${k.killer_name} (${k.level}) ${sign}${k.score}`;
+        })
         .join('\n') + '\n';
 }
 
@@ -203,14 +209,14 @@ module.exports = async (msg) => {
         const s = data.stats;
 
         let text = `👤 *${titleCase(s.name)}*\n`;
-        text += `🏅 Rank #${s.rank}  ·  ⭐ Nivel: ${s.level}\n🛡️ ${s.guild ? s.guild : 'Sin Guild'}\n`;
+        text += `🏅 *Rank* #${s.rank}  ·  ⭐ *Nivel:* ${s.level}\n🛡️ *${s.guild ? s.guild : 'Sin Guild'}*\n`;
         text += `🌍 ${world} · 🗓️ ${getCycleLabel(month, year)}\n\n`;
 
-        text += `🏆 Puntuación total: ${s.final_score}\n`;
-        text += `☠️ Asesinatos: ${s.kills}  |  💀 Muertes: ${s.deaths}\n`;
-        if (s.top_prey?.name) text += `🎯 Víctima Destacada: ${s.top_prey.name} (${s.top_prey.count}x)\n`;
-        if (s.top_predator?.name) text += `🩸 Rival Principal: ${s.top_predator.name} (${s.top_predator.count}x)\n`;
-        text += `📊 Nivel prom. víctimas: ${s.avg_victim_level}\n`;
+        text += `🏆 *Puntuación total:* ${s.final_score}\n`;
+        text += `☠️ *Asesinatos:* ${s.kills}  |  💀 *Muertes:* ${s.deaths}\n`;
+        if (s.top_prey?.name) text += `🎯 *Víctima Destacada:* ${s.top_prey.name} (${s.top_prey.count}x)\n`;
+        if (s.top_predator?.name) text += `🩸 *Rival Principal:* ${s.top_predator.name} (${s.top_predator.count}x)\n`;
+        text += `📊 *Nivel prom. víctimas:* ${s.avg_victim_level}\n`;
 
         text += `\n🗡️ *Últimas víctimas*\n`;
         text += formatVictims(data.victims);
