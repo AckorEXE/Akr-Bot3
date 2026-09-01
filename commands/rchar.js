@@ -15,7 +15,7 @@ function vocationEmoji(voc) {
 function formatDate(unixSeconds) {
     if (!unixSeconds || unixSeconds == 0) return null;
     return new Date(Number(unixSeconds) * 1000).toLocaleDateString('es-MX', {
-        day: '2-digit', month: '2-digit', year: 'numeric',
+        day: '2-digit', month: '2-digit',
         hour: '2-digit', minute: '2-digit',
         timeZone: 'America/Sao_Paulo'
     });
@@ -86,28 +86,28 @@ module.exports = async (msg) => {
             text += `🔎 _Encontrado por nombre anterior_\n`;
         }
 
-        text += `${vocationEmoji(player.vocation)} Vocación: ${player.vocation}\n`;
-        text += `⭐ Nivel: ${player.level}\n`;
-        text += `🌍 Mundo: ${player.world}\n`;
-        text += `🚻 Sexo: ${player.sex}\n`;
-        if (player.residence) text += `🏠 Residencia: ${player.residence}\n`;
+        text += `${vocationEmoji(player.vocation)} *Vocación:* ${player.vocation}\n`;
+        text += `⭐ *Nivel:* ${player.level}\n`;
+        text += `🌍 *Mundo:* ${player.world}\n`;
+        text += `🚻 *Sexo:* ${player.sex}\n`;
+        if (player.residence) text += `🏠 *Residencia:* ${player.residence}\n`;
 
-        if (player.title) text += `🏷️ Título: ${player.title}\n`;
-        if (player.achievementPoints) text += `🏆 Achievement Points: ${player.achievementPoints}\n`;
+        if (player.title) text += `🏷️ *Título:* ${player.title}\n`;
+        if (player.achievementPoints) text += `🏆 *Achievement Points:* ${player.achievementPoints}\n`;
 
         if (player.guild?.name) {
-            text += `🛡️ Guild: ${player.guild.name}${player.guild.rank ? ` (${player.guild.rank})` : ''}\n`;
+            text += `🛡️ *Guild:* ${player.guild.name}${player.guild.rank ? ` (${player.guild.rank})` : ''}\n`;
         }
 
         const houseText = formatHouse(player.house);
-        if (houseText) text += `🏘️ Casa: ${houseText}\n`;
+        if (houseText) text += `🏘️ *Casa:* ${houseText}\n`;
 
         if (Array.isArray(player.formerNames) && player.formerNames.length) {
-            text += `📛 Nombre(s) anterior(es): ${player.formerNames.join(', ')}\n`;
+            text += `📛 *Nombre(s) anterior(es):* ${player.formerNames.join(', ')}\n`;
         }
 
         const lastLogin = formatDate(player.lastlogin);
-        if (lastLogin) text += `🕓 Último login: ${lastLogin}\n`;
+        if (lastLogin) text += `🕓 *Último login:* ${lastLogin}\n`;
 
         if (Array.isArray(data.deaths) && data.deaths.length) {
             text += `\n☠️ *Últimas muertes*\n`;
