@@ -144,15 +144,15 @@ async function findBattleAcrossWorlds(guild1, guild2) {
 
 function formatGuildBlock(name, stats, emoji) {
     let text = `${emoji} *${name}*\n`;
-    text += `☠️ Asesinatos: ${stats.kills}  |  💀 Muertes: ${stats.deaths}\n`;
-    text += `🏆 Puntuación: ${stats.total_score}  (+${stats.score_gain} / -${stats.score_penalty})\n`;
+    text += `☠️ *Asesinatos:* ${stats.kills}  |  💀 *Muertes:* ${stats.deaths}\n`;
+    text += `🏆 *Puntuación:* ${stats.total_score}  (+${stats.score_gain} / -${stats.score_penalty})\n`;
     if (stats.top_killer?.name) {
-        text += `🎯 Top Asesino: ${stats.top_killer.name} (${stats.top_killer.count})\n`;
+        text += `🎯 *Top Asesino:* ${stats.top_killer.name} (${stats.top_killer.count})\n`;
     }
     if (stats.top_feeder?.name) {
-        text += `🪦 Top Asesinado: ${stats.top_feeder.name} (${stats.top_feeder.count})\n`;
+        text += `🪦 *Top Asesinado:* ${stats.top_feeder.name} (${stats.top_feeder.count})\n`;
     }
-    text += `📊 Nivel prom. rival: ${stats.avg_victim_level}\n`;
+    text += `📊 *Nivel prom. rival:* ${stats.avg_victim_level}\n`;
     return text;
 }
 
@@ -248,7 +248,7 @@ module.exports = async (msg) => {
         const stats2 = data.guild2_stats;
 
         let text = `⚔️ *${guild1}* 🆚 *${guild2}*\n`;
-        text += `🌍 ${world} · 🗓️ ${getCycleLabel(startDate)}\n\n`;
+        text += `*🌍 ${world} · 🗓️ ${getCycleLabel(startDate)}*\n\n`;
 
         text += formatGuildBlock(guild1, stats1, '🟩') + '\n';
         text += formatGuildBlock(guild2, stats2, '🟥') + '\n';
