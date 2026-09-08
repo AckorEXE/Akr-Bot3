@@ -38,7 +38,7 @@ const commandEmojis = {
     rchar: '🔰',
     rstats: '🔰',
     rwar: '🔰',
-    rwachar: '🔰',
+    rwarchar: '🔰',
 };
 
 
