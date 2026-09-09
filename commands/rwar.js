@@ -144,7 +144,7 @@ async function findBattleAcrossWorlds(guild1, guild2) {
 
 function formatGuildBlock(name, stats, emoji) {
     let text = `${emoji} *${name}*\n`;
-    text += `☠️ *Asesinatos:* ${stats.kills}  |  💀 *Muertes:* ${stats.deaths}\n`;
+    text += `☠️ *Víctimas:* ${stats.kills} | 💀 *Muertes:* ${stats.deaths}\n`;
     text += `🏆 *Puntuación:* ${stats.total_score}  (+${stats.score_gain} / -${stats.score_penalty})\n`;
     if (stats.top_killer?.name) {
         text += `🎯 *Top Asesino:* ${stats.top_killer.name} (${stats.top_killer.count})\n`;
