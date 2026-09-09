@@ -213,7 +213,7 @@ module.exports = async (msg) => {
         text += `🌍 *${world} · 🗓️ ${getCycleLabel(month, year)}*\n\n`;
 
         text += `🏆 *Puntuación total:* ${s.final_score}\n`;
-        text += `☠️ *Asesinatos:* ${s.kills}  |  💀 *Muertes:* ${s.deaths}\n`;
+        text += `☠️ *Víctimas:* ${s.kills} | 💀 *Muertes:* ${s.deaths}\n`;
         if (s.top_prey?.name) text += `🎯 *Víctima Destacada:* ${s.top_prey.name} (${s.top_prey.count}x)\n`;
         if (s.top_predator?.name) text += `🩸 *Rival Principal:* ${s.top_predator.name} (${s.top_predator.count}x)\n`;
         text += `📊 *Nivel prom. víctimas:* ${s.avg_victim_level}\n`;
