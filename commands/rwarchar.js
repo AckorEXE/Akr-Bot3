@@ -185,7 +185,7 @@ module.exports = async (msg) => {
             if (!hasData(result.data)) {
                 const errorMsg = await asyncReply(
                     msg,
-                    `No se encontró a *${name}* en ${world} este ciclo.`
+                    `No se han registrado estadísticas de *${name}* en *${world}* durante este mes.`
                 );
                 await asyncReact(errorMsg, '❎');
                 await asyncReact(msg, '❎');
@@ -197,7 +197,7 @@ module.exports = async (msg) => {
             if (!result) {
                 const errorMsg = await asyncReply(
                     msg,
-                    `No se encontró a *${name}* en ningún mundo este ciclo.`
+                    `No se han registrado estadísticas de *${name}* en ningún mundo durante este mes.`
                 );
                 await asyncReact(errorMsg, '❎');
                 await asyncReact(msg, '❎');
