@@ -241,7 +241,7 @@ module.exports = async (msg) => {
 
     if (args.length === 0) {
       const errorMsg = await msg.reply(
-        'Uso correcto: *!monster <nombre>*\nEjemplo: *!monster demon*'
+        '*Uso correcto:* `!monster <nombre>`'
       );
       await errorMsg.react('❎');
       await msg.react('❎');
