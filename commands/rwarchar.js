@@ -153,7 +153,7 @@ module.exports = async (msg) => {
 
     const usage =
         '*Uso correcto:* `!rwarchar <nombre>`\n' +
-        'Ejemplo: `!rwarchar <Ackor>`';
+        'Ejemplo: `!rwarchar Ackor`';
 
     if (!body) {
         const errorMsg = await asyncReply(msg, usage);
