@@ -5,7 +5,7 @@ module.exports = async (msg) => {
         // ❌ Uso incorrecto
         if (args.length !== 1 || isNaN(args[0])) {
             const errorMsg = await msg.reply(
-                'Uso correcto: *!shared <nivel>*\nEjemplo: *!shared 45*'
+                '*Uso correcto:* `!shared <nivel>`'
             );
             await errorMsg.react('❎');
             await msg.react('❎');
