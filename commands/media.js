@@ -250,8 +250,8 @@ module.exports = async (msg) => {
 
         if (!args.length || !args[0]) {
             const errorMsg = await msg.reply(
-                '⬇️ *Uso correcto:* !media <url>\n\n' +
-                'Compatible con:\n• TikTok (videos y fotos)\n• Facebook\n• Instagram'
+                '*Uso correcto:* `!media <url>`\n\n' +
+                'Compatible con:\n• TikTok\n• Facebook\n• Instagram'
             );
             await errorMsg.react('❎');
             await msg.react('❎');
@@ -389,7 +389,7 @@ module.exports = async (msg) => {
         console.log(`[MEDIA] Enviando [${platform}${isSlideshow ? '/slideshow' : ''}] ${(finalStats.size / 1024 / 1024).toFixed(2)} MB`);
 
         return await msg.reply(media, undefined, {
-            caption: '⬇️ Descargado con AkR Bot',
+            caption: 'Descargado con AkR Bot',
         });
 
     } catch (error) {
