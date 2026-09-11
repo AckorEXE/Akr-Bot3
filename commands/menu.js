@@ -1,6 +1,6 @@
 module.exports = async (msg) => {
     const text =
-`🤖 *Comandos Disponibles*
+'`🤖 *Comandos Disponibles*
 
 👥 *GRUPOS*
 • `!mp` - Mensaje masivo a miembros
@@ -28,7 +28,7 @@ module.exports = async (msg) => {
 📥 *DESCARGAS*
 • `!elfbot` - Descargar ElfBot
 • `!client860` - Cliente 8.60
-• `!helper` - Macro Tibia 13`;
+• `!helper` - Macro Tibia 13`';
 
     return await msg.reply(text);
 
