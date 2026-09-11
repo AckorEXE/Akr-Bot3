@@ -62,7 +62,7 @@ module.exports = async (msg) => {
     const charName = args.join(' ').trim();
 
     if (!charName) {
-        const errorMsg = await asyncReply(msg, '*Uso correcto:* `!rchar <nombre>`\nEjemplo: `!rchar <Ackor>`');
+        const errorMsg = await asyncReply(msg, '*Uso correcto:* `!rchar <nombre>`\nEjemplo: `!rchar Ackor`');
         await asyncReact(errorMsg, '❎');
         await asyncReact(msg, '❎');
         return null;
