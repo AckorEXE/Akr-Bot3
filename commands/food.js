@@ -301,7 +301,7 @@ function multipleMatchesText(query, list) {
 
 function notFoundText(query) {
   const sug = suggest(normalize(query));
-  const parts = [`❎ No encontré ${b('"' + query + '"')}`, ''];
+  const parts = [`No encontré ${b('"' + query + '"')}`, ''];
 
   if (sug.length) {
     parts.push('🤔 ' + b('¿Quisiste decir?'));
