@@ -67,38 +67,38 @@ const GROUPS = {
 
 const imbuements = {
   // 🔥 Daño elemental
-  'scorch':    { emoji: '🔥', label: 'Scorch',    effect: 'Fire Damage',   group: 'damage', materials: ['25 Fiery Heart', '5 Green Dragon Scale', '5 Demon Horn'], compatible: [...MELEE, ...DISTANCE] },
-  'venom':     { emoji: '🌱', label: 'Venom',     effect: 'Earth Damage',  group: 'damage', materials: ['25 Swamp Grass', '20 Poisonous Slime', '2 Slime Heart'], compatible: [...MELEE, ...DISTANCE] },
-  'frost':     { emoji: '❄️', label: 'Frost',     effect: 'Ice Damage',    group: 'damage', materials: ['25 Frosty Heart', '10 Seacrest Hair', '5 Polar Bear Paw'], compatible: [...MELEE, ...DISTANCE] },
-  'electrify': { emoji: '⚡', label: 'Electrify', effect: 'Energy Damage', group: 'damage', materials: ['25 Rorc Feather', '5 Peacock Feather Fan', '1 Energy Vein'], compatible: [...MELEE, ...DISTANCE] },
-  'reap':      { emoji: '💀', label: 'Reap',      effect: 'Death Damage',  group: 'damage', materials: ['25 Pile of Grave Earth', '20 Demonic Skeletal Hand', '5 Petrified Scream'], compatible: [...MELEE, ...DISTANCE] },
+  'scorch':    { emoji: '🔥', label: 'Scorch',    effect: 'Fire Damage',   group: 'damage', values: ['10%','25%','50%'], materials: ['25 Fiery Heart', '5 Green Dragon Scale', '5 Demon Horn'], compatible: [...MELEE, ...DISTANCE] },
+  'venom':     { emoji: '🌱', label: 'Venom',     effect: 'Earth Damage',  group: 'damage', values: ['10%','25%','50%'], materials: ['25 Swamp Grass', '20 Poisonous Slime', '2 Slime Heart'], compatible: [...MELEE, ...DISTANCE] },
+  'frost':     { emoji: '❄️', label: 'Frost',     effect: 'Ice Damage',    group: 'damage', values: ['10%','25%','50%'], materials: ['25 Frosty Heart', '10 Seacrest Hair', '5 Polar Bear Paw'], compatible: [...MELEE, ...DISTANCE] },
+  'electrify': { emoji: '⚡', label: 'Electrify', effect: 'Energy Damage', group: 'damage', values: ['10%','25%','50%'], materials: ['25 Rorc Feather', '5 Peacock Feather Fan', '1 Energy Vein'], compatible: [...MELEE, ...DISTANCE] },
+  'reap':      { emoji: '💀', label: 'Reap',      effect: 'Death Damage',  group: 'damage', values: ['10%','25%','50%'], materials: ['25 Pile of Grave Earth', '20 Demonic Skeletal Hand', '5 Petrified Scream'], compatible: [...MELEE, ...DISTANCE] },
 
   // ⚔️ Combate
-  'strike':     { emoji: '🎯', label: 'Strike',     effect: 'Critical Hit', group: 'combat', materials: ['20 Protective Charm', '25 Sabretooth', '5 Vexclaw Talon'], compatible: [...MELEE, ...DISTANCE, 'wand', 'rod'] },
-  'vampirism':  { emoji: '🩸', label: 'Vampirism',  effect: 'Life Leech',   group: 'combat', materials: ['25 Vampire Teeth', '15 Bloody Pincers', '5 Piece of Dead Brain'], compatible: [...MELEE, ...DISTANCE, 'armor'] },
-  'void':       { emoji: '🔮', label: 'Void',       effect: 'Mana Leech',   group: 'combat', materials: ['25 Rope Belt', '25 Silencer Claw', '5 Grimeleech Wings'], compatible: [...MELEE, ...DISTANCE, 'helmet'] },
-  'epiphany':   { emoji: '✨', label: 'Epiphany',   effect: 'Magic Level',  group: 'combat', materials: ['25 Elvish Talisman', '15 Broken Shamanic Staff', '15 Strand of Medusa Hair'], compatible: ['helmet', 'rod', 'wand'] },
+  'strike':     { emoji: '🎯', label: 'Strike',     effect: 'Critical Hit', group: 'combat', values: ['15%','25%','50%'], materials: ['20 Protective Charm', '25 Sabretooth', '5 Vexclaw Talon'], compatible: [...MELEE, ...DISTANCE, 'wand', 'rod'] },
+  'vampirism':  { emoji: '🩸', label: 'Vampirism',  effect: 'Life Leech',   group: 'combat', values: ['5%','10%','25%'], materials: ['25 Vampire Teeth', '15 Bloody Pincers', '5 Piece of Dead Brain'], compatible: [...MELEE, ...DISTANCE, 'armor'] },
+  'void':       { emoji: '🔮', label: 'Void',       effect: 'Mana Leech',   group: 'combat', values: ['3%','5%','8%'], materials: ['25 Rope Belt', '25 Silencer Claw', '5 Grimeleech Wings'], compatible: [...MELEE, ...DISTANCE, 'helmet'] },
+  'epiphany':   { emoji: '✨', label: 'Epiphany',   effect: 'Magic Level',  group: 'combat', values: ['+1','+2','+4'], materials: ['25 Elvish Talisman', '15 Broken Shamanic Staff', '15 Strand of Medusa Hair'], compatible: ['helmet', 'rod', 'wand'] },
 
   // 🎯 Skills
-  'chop':      { emoji: '🪓', label: 'Chop',      effect: 'Axe Fighting',      group: 'skill', materials: ['20 Orc Tooth', '25 Battle Stone', '20 Moohtant Horn'], compatible: ['axe', 'helmet'] },
-  'slash':     { emoji: '🗡️', label: 'Slash',     effect: 'Sword Fighting',    group: 'skill', materials: ['25 Lion’s Mane', '25 Mooh’tah Shell', '5 War Crystal'], compatible: ['sword', 'helmet'] },
-  'bash':      { emoji: '🔨', label: 'Bash',      effect: 'Club Fighting',     group: 'skill', materials: ['20 Cyclops Toe', '15 Ogre Nose Ring', '10 Warmaster’s Wristguards'], compatible: ['club', 'helmet'] },
-  'punch':     { emoji: '👊', label: 'Punch',     effect: 'Fist Fighting',     group: 'skill', materials: ['25 Tarantula Egg', '20 Mantassin Tail', '15 Gold-Brocaded Cloth'], compatible: ['fist', 'helmet'] },
-  'precision': { emoji: '🏹', label: 'Precision', effect: 'Distance Fighting', group: 'skill', materials: ['25 Elven Scouting Glass', '20 Elven Hoof', '10 Metal Spike'], compatible: [...DISTANCE, 'helmet'] },
+  'chop':      { emoji: '🪓', label: 'Chop',      effect: 'Axe Fighting',      group: 'skill', values: ['+1','+2','+4'], materials: ['20 Orc Tooth', '25 Battle Stone', '20 Moohtant Horn'], compatible: ['axe', 'helmet'] },
+  'slash':     { emoji: '🗡️', label: 'Slash',     effect: 'Sword Fighting',    group: 'skill', values: ['+1','+2','+4'], materials: ['25 Lion’s Mane', '25 Mooh’tah Shell', '5 War Crystal'], compatible: ['sword', 'helmet'] },
+  'bash':      { emoji: '🔨', label: 'Bash',      effect: 'Club Fighting',     group: 'skill', values: ['+1','+2','+4'], materials: ['20 Cyclops Toe', '15 Ogre Nose Ring', '10 Warmaster’s Wristguards'], compatible: ['club', 'helmet'] },
+  'punch':     { emoji: '👊', label: 'Punch',     effect: 'Fist Fighting',     group: 'skill', values: ['+1','+2','+4'], materials: ['25 Tarantula Egg', '20 Mantassin Tail', '15 Gold-Brocaded Cloth'], compatible: ['fist', 'helmet'] },
+  'precision': { emoji: '🏹', label: 'Precision', effect: 'Distance Fighting', group: 'skill', values: ['+1','+2','+4'], materials: ['25 Elven Scouting Glass', '20 Elven Hoof', '10 Metal Spike'], compatible: [...DISTANCE, 'helmet'] },
 
   // 🛡️ Protección
-  'blockade':       { emoji: '🔰', label: 'Blockade',       effect: 'Shielding',        group: 'protection', materials: ['20 Piece of Scarab Shell', '25 Brimstone Shell', '25 Frazzle Skin'], compatible: ['helmet', 'shield', 'spellbook'] },
-  'lich shroud':    { emoji: '💀', label: 'Lich Shroud',    effect: 'Death Protection', group: 'protection', materials: ['25 Flask of Embalming Fluid', '20 Gloom Wolf Fur', '5 Mystical Hourglass'], compatible: ['armor', 'shield'] },
-  'snake skin':     { emoji: '🌱', label: 'Snake Skin',     effect: 'Earth Protection', group: 'protection', materials: ['25 Swampling Wood', '20 Snake Skin', '10 Brimstone Fangs'], compatible: ['armor', 'shield', 'spellbook'] },
-  'dragon hide':    { emoji: '🔥', label: 'Dragon Hide',    effect: 'Fire Protection',  group: 'protection', materials: ['20 Green Dragon Leather', '10 Blazing Bone', '5 Draken Sulphur'], compatible: ['armor', 'shield', 'spellbook'] },
-  'quara scale':    { emoji: '❄️', label: 'Quara Scale',    effect: 'Ice Protection',   group: 'protection', materials: ['25 Winter Wolf Fur', '10 Thick Fur', '10 Deepling Wart'], compatible: ['armor', 'shield', 'spellbook'] },
-  'cloud fabric':   { emoji: '⚡', label: 'Cloud Fabric',   effect: 'Energy Protection', group: 'protection', materials: ['20 Wyvern Talisman', '15 Crawler Head Plating', '10 Wyrm Scale'], compatible: ['armor', 'shield', 'spellbook'] },
-  'demon presence': { emoji: '✝️', label: 'Demon Presence', effect: 'Holy Protection',  group: 'protection', materials: ['25 Cultish Robe', '25 Cultish Mask', '20 Hellspawn Tail'], compatible: ['armor', 'shield', 'spellbook'] },
+  'blockade':       { emoji: '🔰', label: 'Blockade',       effect: 'Shielding',        group: 'protection', values: ['+1','+2','+4'], materials: ['20 Piece of Scarab Shell', '25 Brimstone Shell', '25 Frazzle Skin'], compatible: ['helmet', 'shield', 'spellbook'] },
+  'lich shroud':    { emoji: '💀', label: 'Lich Shroud',    effect: 'Death Protection', group: 'protection', values: ['2%','5%','10%'], materials: ['25 Flask of Embalming Fluid', '20 Gloom Wolf Fur', '5 Mystical Hourglass'], compatible: ['armor', 'shield'] },
+  'snake skin':     { emoji: '🌱', label: 'Snake Skin',     effect: 'Earth Protection', group: 'protection', values: ['3%','8%','15%'], materials: ['25 Swampling Wood', '20 Snake Skin', '10 Brimstone Fangs'], compatible: ['armor', 'shield', 'spellbook'] },
+  'dragon hide':    { emoji: '🔥', label: 'Dragon Hide',    effect: 'Fire Protection',  group: 'protection', values: ['3%','8%','15%'], materials: ['20 Green Dragon Leather', '10 Blazing Bone', '5 Draken Sulphur'], compatible: ['armor', 'shield', 'spellbook'] },
+  'quara scale':    { emoji: '❄️', label: 'Quara Scale',    effect: 'Ice Protection',   group: 'protection', values: ['3%','8%','15%'], materials: ['25 Winter Wolf Fur', '10 Thick Fur', '10 Deepling Wart'], compatible: ['armor', 'shield', 'spellbook'] },
+  'cloud fabric':   { emoji: '⚡', label: 'Cloud Fabric',   effect: 'Energy Protection', group: 'protection', values: ['3%','8%','15%'], materials: ['20 Wyvern Talisman', '15 Crawler Head Plating', '10 Wyrm Scale'], compatible: ['armor', 'shield', 'spellbook'] },
+  'demon presence': { emoji: '✝️', label: 'Demon Presence', effect: 'Holy Protection',  group: 'protection', values: ['3%','8%','15%'], materials: ['25 Cultish Robe', '25 Cultish Mask', '20 Hellspawn Tail'], compatible: ['armor', 'shield', 'spellbook'] },
 
   // 🎒 Utilidad
-  'vibrancy':      { emoji: '🪞', label: 'Vibrancy',      effect: 'Paralysis Deflection', group: 'utility', materials: ['20 Wereboar Hooves', '15 Crystallized Anger', '5 Quill'], compatible: ['boots'] },
-  'swiftness':     { emoji: '🪶', label: 'Swiftness',     effect: 'Walking Speed',        group: 'utility', materials: ['15 Damselfly Wing', '25 Compass', '20 Waspoid Wing'], compatible: ['boots'] },
-  'featherweight': { emoji: '🎒', label: 'Featherweight', effect: 'Capacity',             group: 'utility', materials: ['20 Fairy Wings', '10 Little Bowl of Myrrh', '5 Goosebump Leather'], compatible: ['backpack'] }
+  'vibrancy':      { emoji: '🪞', label: 'Vibrancy',      effect: 'Paralysis Deflection', group: 'utility', values: ['15%','25%','50%'], materials: ['20 Wereboar Hooves', '15 Crystallized Anger', '5 Quill'], compatible: ['boots'] },
+  'swiftness':     { emoji: '🪶', label: 'Swiftness',     effect: 'Walking Speed',        group: 'utility', values: ['+10','+15','+30'], materials: ['15 Damselfly Wing', '25 Compass', '20 Waspoid Wing'], compatible: ['boots'] },
+  'featherweight': { emoji: '🎒', label: 'Featherweight', effect: 'Capacity',             group: 'utility', values: ['3%','8%','15%'], materials: ['20 Fairy Wings', '10 Little Bowl of Myrrh', '5 Goosebump Leather'], compatible: ['backpack'] }
 };
 
 // Alias de imbuements (nombres alternativos / en español)
@@ -292,8 +292,6 @@ function prettyCompatible(tokens) {
 
 function helpText() {
   return [
-    '💠 ' + b('IMBUEMENTS') + ' — Tibia',
-    '',
     'Elige qué quieres consultar:',
     '',
     `📜 ${c('!imbuement list')}`,
@@ -304,14 +302,7 @@ function helpText() {
     '',
     `🔎 ${c('!imbuement <nombre>')}`,
     `   _Materiales y niveles de un imbuement_`,
-    `   Ej: ${c('!imbuement scorch')}`,
-    '',
-    `🎒 ${c('!imbuement <tipo>')}`,
-    `   _Imbuements e items de ese tipo_`,
-    `   Ej: ${c('!imbuement helmet')}`,
-    '',
-    LINE,
-    `💡 _Tip: acepta nombres parciales._ ${c('!imbuement vamp')} _también funciona._`
+    `   Ej: ${c('!imbuement scorch')}`
   ].join('\n');
 }
 
@@ -323,8 +314,6 @@ function typeText() {
   });
 
   return [
-    '🧩 ' + b('Tipos de item con imbuement'),
-    '',
     ...lines,
     '',
     LINE,
@@ -334,14 +323,12 @@ function typeText() {
 }
 
 function listText() {
-  const parts = [
-    '📜 ' + b(`Imbuements disponibles (${Object.keys(imbuements).length})`)
-  ];
+  const parts = [];
 
   for (const g in GROUPS) {
     const keys = Object.keys(imbuements).filter(k => imbuements[k].group === g);
     if (!keys.length) continue;
-    parts.push('');
+    if (parts.length) parts.push('');
     parts.push(`${GROUPS[g].emoji} ${b(GROUPS[g].label)}`);
     keys.forEach(k => parts.push(imbLine(k)));
   }
@@ -356,29 +343,37 @@ function listText() {
 
 function detailText(key) {
   const i = imbuements[key];
-  const [m1, m2, m3] = i.materials;
+  const LEVELS = [
+    { n: '1️⃣', label: 'Basic' },
+    { n: '2️⃣', label: 'Intricate' },
+    { n: '3️⃣', label: 'Powerful' }
+  ];
 
-  return [
+  const parts = [
     `${i.emoji} ${b(i.label)} — _${i.effect}_`,
     '',
-    '🧪 ' + b('Materiales por nivel'),
-    `1️⃣ ${b('Basic')}`,
-    `    ${m1}`,
-    `2️⃣ ${b('Intricate')}`,
-    `    ${m1}\n    ${m2}`,
-    `3️⃣ ${b('Powerful')}`,
-    `    ${m1}\n    ${m2}\n    ${m3}`,
-    '',
-    `🧩 ${b('Se aplica en:')} ${prettyCompatible(i.compatible)}`,
-    '',
-    LINE,
-    `🎒 Ver items de un tipo: ${c('!imbuement helmet')}`,
-    `📜 Ver todos: ${c('!imbuement list')}`
-  ].join('\n');
+    '🧪 ' + b('Materiales por nivel')
+  ];
+
+  LEVELS.forEach((lv, idx) => {
+    parts.push('');
+    parts.push(`${lv.n} ${b(lv.label)} — ${i.values[idx]}`);
+    // nivel 1 = 1er material, nivel 2 = 1er + 2do, nivel 3 = los tres
+    i.materials.slice(0, idx + 1).forEach(m => parts.push(`• ${m}`));
+  });
+
+  parts.push('');
+  parts.push(`🧩 ${b('Se aplica en:')}`);
+  parts.push(prettyCompatible(i.compatible));
+  parts.push('');
+  parts.push(LINE);
+  parts.push(`🎒 Ver items de un tipo: ${c('!imbuement helmet')}`);
+  parts.push(`📜 Ver todos: ${c('!imbuement list')}`);
+
+  return parts.join('\n');
 }
 
 function typeDetailText(type) {
-  const meta = TYPE_META[type];
   const items = itemTypes[type];
 
   // imbuements compatibles, ordenados por grupo
@@ -390,8 +385,6 @@ function typeDetailText(type) {
     });
 
   const parts = [
-    `${meta.emoji} ${b(meta.label.toUpperCase())}`,
-    '',
     `📜 ${b(`Imbuements compatibles (${compatKeys.length})`)}`
   ];
 
@@ -399,7 +392,7 @@ function typeDetailText(type) {
 
   // items agrupados por slots (3 → 1)
   parts.push('');
-  parts.push(`🎒 ${b(`Items (${items.length})`)}`);
+  parts.push(`🎒 ${b('Lista de items:')}`);
 
   const bySlots = {};
   items.forEach(it => {
@@ -412,7 +405,7 @@ function typeDetailText(type) {
     .forEach(s => {
       const names = bySlots[s].slice().sort((a, b2) => a.localeCompare(b2));
       parts.push('');
-      parts.push(`${'🔹'} ${b(`${s} slot${s > 1 ? 's' : ''}`)} _(${names.length})_`);
+      parts.push(`🔹 ${b(`${s} slot${s > 1 ? 's' : ''}`)}`);
       parts.push(names.join(' · '));
     });
 
