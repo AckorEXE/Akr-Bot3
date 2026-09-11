@@ -152,9 +152,8 @@ module.exports = async (msg) => {
     const body = msg.body.split(' ').slice(1).join(' ').trim();
 
     const usage =
-        'Uso correcto: *!rwarchar nombre, mundo*\n' +
-        'Ejemplo: *!rwarchar null byte, Drakaria*\n' +
-        '_El mundo es opcional — si lo omites, lo busco en todos los mundos._';
+        '*Uso correcto:* `!rwarchar <nombre>`\n' +
+        'Ejemplo: `!rwarchar <Ackor>`';
 
     if (!body) {
         const errorMsg = await asyncReply(msg, usage);
