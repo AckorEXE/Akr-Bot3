@@ -22,6 +22,7 @@ const commandEmojis = {
     shared: '🧠',
     rashid: '🧞',
     imbuement: '🔥',
+    foods: '🧁',
 
     // menú
     menu: '💛',
@@ -53,6 +54,7 @@ const cooldownCommands = {
     monster: 3,
     rashid: 3,
     imbuement: 3,
+    foods: 3,
     shared: 3,
     media: 3,
     rguild: 3,
@@ -191,6 +193,7 @@ const sticker = require('./commands/sticker');
 const elfbot = require('./commands/elfbot');
 const client860 = require('./commands/client860');
 const helper = require('./commands/helper');
+const foods = require('./commands/foods');
 const imbuement = require('./commands/imbuements');
 const media = require('./commands/media');
 const rguild = require('./commands/rguild');
@@ -221,6 +224,7 @@ const commands = {
     shared,
     rashid,
     imbuement,
+    foods,
 
    // Rubinot
    rguild,
