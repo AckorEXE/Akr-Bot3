@@ -40,7 +40,7 @@ module.exports = async (msg) => {
     const guildName = args.join(' ').trim();
 
     if (!guildName) {
-        const errorMsg = await asyncReply(msg, 'Uso correcto: *!rstats <nombre>*\nEjemplo: *!rstats Blinders Team*');
+        const errorMsg = await asyncReply(msg, '*Uso correcto:* `!rstats <nombre>`\nEjemplo: `!rstats <Blinders Team>`');
         await asyncReact(errorMsg, '❎');
         await asyncReact(msg, '❎');
         return null;
@@ -82,7 +82,7 @@ module.exports = async (msg) => {
         }
 
         let text = `📊 *Estadísticas Guild: ${guild.name}*\n`;
-        text += `👥 Miembros totales: ${members.length}\n`;
+        text += `👥 *Miembros*: ${members.length}\n`;
 
         text += `\n🏆 *Top nivel:* ${top.name} · ${top.level} · ${vocIcon(baseVocation(top.vocation))}${top.isOnline ? '🟢' : '🔴'}\n`;
         text += `📉 *Nivel más bajo:* ${lowest.name} · ${lowest.level} · ${vocIcon(baseVocation(lowest.vocation))}${lowest.isOnline ? '🟢' : '🔴'}\n`;
