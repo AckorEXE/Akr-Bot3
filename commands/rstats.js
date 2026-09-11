@@ -40,7 +40,7 @@ module.exports = async (msg) => {
     const guildName = args.join(' ').trim();
 
     if (!guildName) {
-        const errorMsg = await asyncReply(msg, '*Uso correcto:* `!rstats <nombre>`\nEjemplo: `!rstats <Blinders Team>`');
+        const errorMsg = await asyncReply(msg, '*Uso correcto:* `!rstats <nombre>`\nEjemplo: `!rstats Blinders Team`');
         await asyncReact(errorMsg, '❎');
         await asyncReact(msg, '❎');
         return null;
