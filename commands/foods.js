@@ -6,7 +6,6 @@
 
 const c = (s) => '`' + s + '`';           // formato código de WhatsApp
 const b = (s) => '*' + s + '*';           // negrita
-const LINE = '━━━━━━━━━━━━━━━';
 
 // ─────────────────────────────────────────────
 // 🍗 DATOS
@@ -95,11 +94,6 @@ function foodText() {
       }
     });
   }
-
-  parts.push('');
-  parts.push(LINE);
-  parts.push('💡 _Las comidas con % escalan con tu nivel;_');
-  parts.push('_las de cantidad fija siempre curan lo mismo._');
 
   return parts.join('\n');
 }
