@@ -352,11 +352,11 @@ function detailText(key) {
   const parts = [
     `${i.emoji} ${b(i.label)} — _${i.effect}_`,
     '',
-    '🧪 ' + b('Materiales por nivel')
+    '🧪 ' + b('Materiales por nivel:')
   ];
 
   LEVELS.forEach((lv, idx) => {
-    parts.push('');
+    if (idx > 0) parts.push('');   // sin salto antes del primer nivel
     parts.push(`${lv.n} ${b(lv.label)} — ${i.values[idx]}`);
     // nivel 1 = 1er material, nivel 2 = 1er + 2do, nivel 3 = los tres
     i.materials.slice(0, idx + 1).forEach(m => parts.push(`• ${m}`));
