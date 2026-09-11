@@ -191,7 +191,7 @@ module.exports = async (msg) => {
     const args = msg.body.split(' ').slice(1);
 
     if (!args.length) {
-      const errorMsg = await msg.reply('*Uso correcto:* `!item <nombre>`');
+      const errorMsg = await msg.reply('*Uso correcto:* `!item <nombre>`\nEjemplo: `!item <sanguine bow>`');
       await errorMsg.react('❎');
       await msg.react('❎');
       return null;
