@@ -189,9 +189,8 @@ module.exports = async (msg) => {
     const body = msg.body.split(' ').slice(1).join(' ').trim();
 
     const usage =
-        'Uso correcto: *!rwar guild1, guild2, mundo*\n' +
-        'Ejemplo: *!rwar Blinders Team, Warfire Leidorasga, Drakaria*\n' +
-        '_El mundo es opcional — si lo omites, lo busco en todos los mundos._';
+        '*Uso correcto:* `!rwar <guild1, guild2>`\n' +
+        'Ejemplo: `!rwar Blinders Team, Warfire Leidorasga`';
 
     if (!body) {
         const errorMsg = await asyncReply(msg, usage);
