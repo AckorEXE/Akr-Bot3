@@ -20,7 +20,7 @@ module.exports = async (msg) => {
         '',
         '⭐ *RUBINOT*',
         '• `!rchar <nombre>` - Ver personaje',
-        '• `!rguild <nombre>` - Ver guild',
+        '• `!rguild <guild>` - Ver guild',
         '• `!rstats <guild>` - Análisis de guild',
         '• `!rwar <guild1, guild2>` - Estado de la war',
         '• `!rwarchar <nombre>` - Desempeño en war',
