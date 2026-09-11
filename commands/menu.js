@@ -17,7 +17,7 @@ module.exports = async (msg) => {
         '• `!shared <nivel>` - Calcula shared exp',
         '• `!rashid` - Ubicación de Rashid hoy',
         '• `!imbuement <list | type | nombre>` - Info de imbuements',
-        '• `!foods` - Comidas de vida y maná',
+        '• `!food <list | categoría | nombre>` - Comidas con buff',
         '',
         '⭐ *RUBINOT*',
         '• `!rchar <nombre>` - Ver personaje',
