@@ -5,7 +5,7 @@ const axios = require('axios');
 // cuando el usuario no lo especifica.
 const WORLDS = [
     'Auroria', 'Belaria', 'Bellum', 'Drakaria', 'Eldrian',
-    'Malveria', 'Obsidian', 'Tenebrium', 'Vesperia'
+    'Malveria', 'Obsidian', 'Tenebrium', 'Vesperia', 'Infernum I', 'Infernum II', 'Infernum III'
 ];
 
 const API_URL = 'https://api.rubinottools.com/api/battles';
