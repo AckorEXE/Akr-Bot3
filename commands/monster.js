@@ -1,506 +1,1114 @@
+```js
+/**
+ * !monster <nombre>
+ *
+ * Fuente de datos:
+ *   utils/monsters_enhanced_complete.json
+ *
+ * IMPORTANTE:
+ *   Este comando NO consulta Hakai Market.
+ *   No usa axios.
+ *   No usa Puppeteer.
+ *   No depende de Internet.
+ *
+ * El JSON se carga una sola vez en memoria y después todas las consultas
+ * se realizan directamente desde RAM.
+ *
+ * Búsqueda:
+ *   - Exacta
+ *   - Prefijo
+ *   - Palabras
+ *   - Coincidencia parcial
+ *   - Typos sencillos
+ */
+
 const fs = require('fs');
 const path = require('path');
 
-const MONSTERS_FILE = path.join(
-    __dirname,
-    '..',
-    'utils',
-    'monsters_enhanced_complete.json'
+// ─────────────────────────────────────────────────────────────────────────────
+// CONFIGURACIÓN
+// ─────────────────────────────────────────────────────────────────────────────
+
+const LOCAL_JSON = path.join(
+  __dirname,
+  '..',
+  'utils',
+  'monsters_enhanced_complete.json'
 );
 
-let monsters = null;
-let monsterMap = null;
+// Página de origen de los datos.
+// Se utiliza únicamente como referencia al final del mensaje.
+// Los datos NO se obtienen de aquí.
+const DEFAULT_SITE_URL = 'https://tibiopedia.pl/monsters/';
 
-/**
- * Carga los monsters una sola vez y los mantiene en memoria.
- */
-function loadMonsters() {
-    if (monsters !== null) {
-        return monsters;
+const LOOT_MAX = 25;
+
+// false = no muestra porcentajes de loot.
+// true  = muestra, por ejemplo: Sword [5.85%]
+const SHOW_LOOT_CHANCE = false;
+
+// ─────────────────────────────────────────────────────────────────────────────
+// ELEMENTOS
+// ─────────────────────────────────────────────────────────────────────────────
+
+const ELEMENTS = {
+  physical: {
+    emoji: '👊🏻',
+    label: 'Physical',
+  },
+
+  earth: {
+    emoji: '🌱',
+    label: 'Earth',
+  },
+
+  fire: {
+    emoji: '🔥',
+    label: 'Fire',
+  },
+
+  death: {
+    emoji: '💀',
+    label: 'Death',
+  },
+
+  energy: {
+    emoji: '⚡',
+    label: 'Energy',
+  },
+
+  holy: {
+    emoji: '✝️',
+    label: 'Holy',
+  },
+
+  ice: {
+    emoji: '❄️',
+    label: 'Ice',
+  },
+
+  lifedrain: {
+    emoji: '🩸',
+    label: 'Life Drain',
+  },
+
+  manadrain: {
+    emoji: '🔮',
+    label: 'Mana Drain',
+  },
+
+  drown: {
+    emoji: '🌊',
+    label: 'Drown',
+  },
+};
+
+// ─────────────────────────────────────────────────────────────────────────────
+// CHARMS
+// ─────────────────────────────────────────────────────────────────────────────
+
+const CHARM_ORDER = [
+  ['physical', 'Wound'],
+  ['earth', 'Poison'],
+  ['ice', 'Freeze'],
+  ['energy', 'Zap'],
+  ['death', 'Curse'],
+  ['fire', 'Enflame'],
+  ['holy', 'Divine Wrath'],
+];
+
+// Respaldo por si algún monster no tiene charm_points.
+const CHARM_POINTS = {
+  harmless: 1,
+  trivial: 5,
+  easy: 15,
+  medium: 25,
+  hard: 50,
+  challenging: 100,
+};
+
+const CHARM_KILLS = {
+  harmless: 25,
+  trivial: 250,
+  easy: 500,
+  medium: 1000,
+  hard: 2500,
+  challenging: 2500,
+};
+
+// ─────────────────────────────────────────────────────────────────────────────
+// UTILIDADES
+// ─────────────────────────────────────────────────────────────────────────────
+
+function norm(value) {
+  return String(value ?? '')
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, ' ')
+    .trim();
+}
+
+function slugify(value) {
+  return String(value ?? '')
+    .toLowerCase()
+    .replace(/['’]/g, '')
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '');
+}
+
+function canon(value) {
+  return String(value ?? '')
+    .toLowerCase()
+    .replace(/[^a-z]/g, '');
+}
+
+const SMALL_WORDS = new Set([
+  'of',
+  'the',
+  'and',
+  'in',
+  'on',
+]);
+
+function titleCase(value) {
+  return String(value ?? '')
+    .split(' ')
+    .map((word, index) => {
+      if (!word) return word;
+
+      if (index > 0 && SMALL_WORDS.has(word.toLowerCase())) {
+        return word.toLowerCase();
+      }
+
+      return (
+        word.charAt(0).toUpperCase() +
+        word.slice(1)
+      );
+    })
+    .join(' ');
+}
+
+function num(value) {
+  if (typeof value === 'number') {
+    return Number.isFinite(value) ? value : null;
+  }
+
+  if (typeof value !== 'string') {
+    return null;
+  }
+
+  const n = parseFloat(
+    value.replace(/,/g, '')
+  );
+
+  return Number.isFinite(n) ? n : null;
+}
+
+function fmt(value, decimals = 1) {
+  if (value == null) return null;
+
+  return value.toLocaleString('en-US', {
+    maximumFractionDigits: decimals,
+  });
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// CARGA LOCAL DEL JSON
+// ─────────────────────────────────────────────────────────────────────────────
+//
+// Se carga UNA sola vez.
+//
+// Esto significa:
+//
+// Primera consulta:
+//   disco → JSON.parse() → RAM
+//
+// Consultas siguientes:
+//   RAM → resultado
+//
+// No existe ninguna petición HTTP.
+// ─────────────────────────────────────────────────────────────────────────────
+
+let MEM_INDEX = null;
+let MEM_LOAD_PROMISE = null;
+
+async function loadIndex() {
+  if (MEM_INDEX) {
+    return MEM_INDEX;
+  }
+
+  if (MEM_LOAD_PROMISE) {
+    return MEM_LOAD_PROMISE;
+  }
+
+  MEM_LOAD_PROMISE = (async () => {
+    try {
+      if (!fs.existsSync(LOCAL_JSON)) {
+        throw new Error(
+          `No existe el archivo: ${LOCAL_JSON}`
+        );
+      }
+
+      const text = await fs.promises.readFile(
+        LOCAL_JSON,
+        'utf8'
+      );
+
+      const data = JSON.parse(text);
+
+      const index = buildIndex(data);
+
+      MEM_INDEX = index;
+
+      console.log(
+        `📚 [monster] JSON local cargado: ${index.list.length} monsters`
+      );
+
+      return index;
+
+    } catch (err) {
+      console.log(
+        `❌ [monster] Error cargando JSON local: ${err.message}`
+      );
+
+      throw err;
+
+    } finally {
+      MEM_LOAD_PROMISE = null;
     }
+  })();
+
+  return MEM_LOAD_PROMISE;
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// CREAR ÍNDICE
+// ─────────────────────────────────────────────────────────────────────────────
+
+function buildIndex(data) {
+  let arr;
+
+  if (Array.isArray(data)) {
+    arr = data;
+  } else if (
+    data &&
+    typeof data === 'object'
+  ) {
+    const possibleArray = Object.values(data)
+      .find(Array.isArray);
+
+    arr = possibleArray || Object.values(data);
+  } else {
+    arr = [];
+  }
+
+  const list = [];
+  const byNorm = new Map();
+
+  for (const monster of arr) {
+    if (
+      !monster ||
+      typeof monster.name !== 'string' ||
+      !monster.name.trim()
+    ) {
+      continue;
+    }
+
+    const entry = {
+      m: monster,
+      name: monster.name,
+      norm: norm(monster.name),
+      slug: getMonsterSlug(monster),
+    };
+
+    list.push(entry);
+
+    if (!byNorm.has(entry.norm)) {
+      byNorm.set(entry.norm, entry);
+    }
+  }
+
+  if (!list.length) {
+    throw new Error(
+      'El JSON no contiene monsters válidos'
+    );
+  }
+
+  return {
+    list,
+    byNorm,
+  };
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// SLUG / URL
+// ─────────────────────────────────────────────────────────────────────────────
+
+function getMonsterSlug(monster) {
+  // Si el JSON tiene URL de Tibiopedia:
+  //
+  // https://tibiopedia.pl/monsters/Young_Goanna
+  //
+  // usamos directamente Young_Goanna.
+
+  if (typeof monster.url === 'string') {
+    const match = monster.url.match(
+      /\/monsters\/([^/?#]+)/
+    );
+
+    if (match && match[1]) {
+      return decodeURIComponent(match[1]);
+    }
+  }
+
+  return slugify(monster.name);
+}
+
+function getMonsterUrl(monster) {
+  if (
+    monster &&
+    typeof monster.url === 'string' &&
+    monster.url.startsWith('http')
+  ) {
+    return monster.url;
+  }
+
+  return DEFAULT_SITE_URL + getMonsterSlug(monster);
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// LEVENSHTEIN
+// ─────────────────────────────────────────────────────────────────────────────
+
+function levenshtein(a, b) {
+  if (a === b) return 0;
+
+  const dp = Array.from(
+    { length: b.length + 1 },
+    (_, i) => i
+  );
+
+  for (let i = 1; i <= a.length; i++) {
+    let previous = dp[0];
+
+    dp[0] = i;
+
+    for (let j = 1; j <= b.length; j++) {
+      const current = dp[j];
+
+      dp[j] = Math.min(
+        dp[j] + 1,
+        dp[j - 1] + 1,
+        previous +
+          (a[i - 1] === b[j - 1] ? 0 : 1)
+      );
+
+      previous = current;
+    }
+  }
+
+  return dp[b.length];
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// SCORE DE BÚSQUEDA
+// ─────────────────────────────────────────────────────────────────────────────
+
+function score(entry, query, queryTokens) {
+  const name = entry.norm;
+
+  // Coincidencia exacta.
+  if (name === query) {
+    return 100;
+  }
+
+  // El nombre comienza con lo buscado.
+  if (name.startsWith(query)) {
+    return (
+      80 -
+      Math.min(
+        name.length - query.length,
+        20
+      ) * 0.5
+    );
+  }
+
+  const words = name.split(' ');
+
+  // Todas las palabras buscadas comienzan alguna palabra
+  // del nombre.
+  if (
+    queryTokens.every((token) =>
+      words.some((word) =>
+        word.startsWith(token)
+      )
+    )
+  ) {
+    return 65;
+  }
+
+  // Coincidencia parcial.
+  if (name.includes(query)) {
+    return 55;
+  }
+
+  // Typo sencillo.
+  if (
+    query.length >= 4 &&
+    Math.abs(name.length - query.length) <= 3
+  ) {
+    const distance = levenshtein(
+      name,
+      query
+    );
+
+    if (
+      distance <=
+      Math.max(
+        1,
+        Math.floor(query.length / 4)
+      )
+    ) {
+      return 40 - distance;
+    }
+  }
+
+  return 0;
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// BUSCAR MONSTER
+// ─────────────────────────────────────────────────────────────────────────────
+
+function search(index, query) {
+  const q = norm(query);
+
+  if (!q) {
+    return {
+      best: null,
+      score: 0,
+      others: [],
+    };
+  }
+
+  // Exacto.
+  const exact = index.byNorm.get(q);
+
+  if (exact) {
+    return {
+      best: exact,
+      score: 100,
+      others: [],
+    };
+  }
+
+  const qTokens = q.split(' ');
+
+  const ranked = index.list
+    .map((entry) => ({
+      entry,
+      score: score(
+        entry,
+        q,
+        qTokens
+      ),
+    }))
+    .filter((item) => item.score > 0)
+    .sort(
+      (a, b) =>
+        b.score - a.score ||
+        a.entry.name.length -
+          b.entry.name.length
+    );
+
+  if (!ranked.length) {
+    return {
+      best: null,
+      score: 0,
+      others: [],
+    };
+  }
+
+  return {
+    best: ranked[0].entry,
+    score: ranked[0].score,
+    others: ranked
+      .slice(1, 5)
+      .map((item) => item.entry),
+  };
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// RESISTENCIAS
+// ─────────────────────────────────────────────────────────────────────────────
+
+function parseResistances(monster) {
+  if (
+    !monster.resistances ||
+    typeof monster.resistances !== 'object'
+  ) {
+    return {
+      text: null,
+      taken: [],
+    };
+  }
+
+  const taken = [];
+
+  for (
+    const [key, value] of Object.entries(
+      monster.resistances
+    )
+  ) {
+    const resistance = num(value);
+
+    if (resistance == null) {
+      continue;
+    }
+
+    // +5% resistencia = recibe 95%
+    // -10% resistencia = recibe 110%
+    const damageTaken = 100 - resistance;
+
+    taken.push({
+      el: canon(key),
+      value: damageTaken,
+    });
+  }
+
+  // Mayor daño recibido primero.
+  taken.sort(
+    (a, b) => b.value - a.value
+  );
+
+  const text = taken.length
+    ? taken
+        .map(({ el, value }) => {
+          const info =
+            ELEMENTS[el] || {
+              emoji: '❔',
+              label: titleCase(el),
+            };
+
+          const line =
+            `${info.emoji} ` +
+            `${info.label.toLowerCase()}: ` +
+            `${fmt(value)}%`;
+
+          // Si recibe más de 100%, lo marcamos
+          // como debilidad.
+          return value > 100
+            ? `*${line}*`
+            : line;
+        })
+        .join('\n')
+    : null;
+
+  return {
+    text,
+    taken,
+  };
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// CHARM RECOMENDADO
+// ─────────────────────────────────────────────────────────────────────────────
+
+function recommendCharm(
+  taken,
+  health
+) {
+  if (!health) {
+    return null;
+  }
+
+  let best = null;
+  let bestValue = 0;
+
+  for (
+    const [element, charmName]
+    of CHARM_ORDER
+  ) {
+    const found = taken.find(
+      (item) =>
+        item.el === element
+    );
+
+    if (
+      found &&
+      found.value > bestValue
+    ) {
+      bestValue = found.value;
+
+      best = {
+        el: element,
+        name: charmName,
+      };
+    }
+  }
+
+  return best
+    ? `${ELEMENTS[best.el].emoji} ${best.name}`
+    : null;
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// DPS
+// ─────────────────────────────────────────────────────────────────────────────
+
+function parseDps(monster) {
+  const total = num(monster.maxDPS);
+
+  if (total == null) {
+    return null;
+  }
+
+  const lines = Object.entries(
+    monster.elementPercentages || {}
+  )
+    .map(([key, value]) => ({
+      el: canon(key),
+      pct: num(value),
+    }))
+    .filter(
+      (item) =>
+        item.pct != null &&
+        item.pct > 0
+    )
+    .sort(
+      (a, b) => b.pct - a.pct
+    )
+    .map(({ el, pct }) => {
+      const info =
+        ELEMENTS[el] || {
+          emoji: '❔',
+          label: titleCase(el),
+        };
+
+      return (
+        `   ${info.emoji} ` +
+        `${info.label} ` +
+        `${fmt(pct)}%`
+      );
+    });
+
+  return {
+    total,
+    lines,
+  };
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// LOOT
+// ─────────────────────────────────────────────────────────────────────────────
+
+function parseLoot(monster) {
+  if (
+    !Array.isArray(monster.loot) ||
+    !monster.loot.length
+  ) {
+    return null;
+  }
+
+  const items = monster.loot
+    .filter(
+      (item) =>
+        item &&
+        item.name
+    )
+    .map((item) => {
+      let output = titleCase(
+        item.name
+      );
+
+      if (
+        item.maxCount != null &&
+        Number(item.maxCount) > 1
+      ) {
+        output +=
+          ` (máx. ${item.maxCount})`;
+      }
+
+      if (
+        SHOW_LOOT_CHANCE &&
+        item.chance != null
+      ) {
+        output +=
+          ` [${fmt(
+            Number(item.chance) / 1000,
+            2
+          )}%]`;
+      }
+
+      return output;
+    });
+
+  const shown = items
+    .slice(0, LOOT_MAX)
+    .join(', ');
+
+  if (
+    items.length > LOOT_MAX
+  ) {
+    return (
+      `${shown} ` +
+      `(+${items.length - LOOT_MAX} más)`
+    );
+  }
+
+  return shown;
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// PARSEAR MONSTER
+// ─────────────────────────────────────────────────────────────────────────────
+
+function parseMonster(entry) {
+  const monster = entry.m;
+
+  const difficulty =
+    monster.difficulty
+      ? String(
+          monster.difficulty
+        ).toLowerCase()
+      : null;
+
+  const resistances =
+    parseResistances(
+      monster
+    );
+
+  const health =
+    num(
+      monster.health ??
+      monster.maxHealth
+    );
+
+  return {
+    name: entry.name,
+
+    hp: health,
+
+    exp: num(
+      monster.experience
+    ),
+
+    armor: num(
+      monster.armor
+    ),
+
+    mitigation:
+      monster.mitigation != null
+        ? typeof monster.mitigation ===
+          'number'
+          ? `${monster.mitigation}%`
+          : String(
+              monster.mitigation
+            )
+        : null,
+
+    speed: num(
+      monster.speed
+    ),
+
+    tags: [
+      monster.class,
+      monster.difficulty,
+      monster.role,
+    ]
+      .filter(Boolean)
+      .join(' • '),
+
+    dps: parseDps(
+      monster
+    ),
+
+    resist:
+      resistances.text,
+
+    charmRec:
+      recommendCharm(
+        resistances.taken,
+        health
+      ),
+
+    respawn:
+      Array.isArray(
+        monster.respawn
+      ) &&
+      monster.respawn.length
+        ? monster.respawn.join(
+            ', '
+          )
+        : null,
+
+    charmPts:
+      num(
+        monster.charm_points
+      ) ??
+      (
+        difficulty
+          ? CHARM_POINTS[
+              difficulty
+            ]
+          : null
+      ) ??
+      null,
+
+    kills:
+      difficulty
+        ? CHARM_KILLS[
+            difficulty
+          ] ?? null
+        : null,
+
+    loot:
+      parseLoot(
+        monster
+      ),
+
+    url:
+      getMonsterUrl(
+        monster
+      ),
+  };
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// CREAR MENSAJE
+// ─────────────────────────────────────────────────────────────────────────────
+
+function buildMessage(monster) {
+  let text =
+    `👾 *${monster.name}*\n`;
+
+  if (monster.tags) {
+    text +=
+      `🏷️ ${monster.tags}\n`;
+  }
+
+  text += '\n';
+
+  if (monster.hp != null) {
+    text +=
+      `❤️ *Vida:* ` +
+      `${fmt(monster.hp, 0)}\n`;
+  }
+
+  if (monster.exp != null) {
+    text +=
+      `✨ *Experiencia:* ` +
+      `${fmt(monster.exp, 0)}\n`;
+  }
+
+  if (monster.armor != null) {
+    text +=
+      `🛡️ *Armadura:* ` +
+      `${fmt(monster.armor, 0)}\n`;
+  }
+
+  if (monster.mitigation) {
+    text +=
+      `🧱 *Mitigación:* ` +
+      `${monster.mitigation}\n`;
+  }
+
+  if (monster.speed != null) {
+    text +=
+      `👟 *Velocidad:* ` +
+      `${fmt(monster.speed, 0)}\n`;
+  }
+
+  if (monster.dps) {
+    text +=
+      `\n💥 *Max DPS:* ` +
+      `${fmt(
+        monster.dps.total,
+        0
+      )}\n`;
+
+    if (
+      monster.dps.lines.length
+    ) {
+      text +=
+        monster.dps.lines.join(
+          '\n'
+        ) +
+        '\n';
+    }
+  }
+
+  if (monster.resist) {
+    text +=
+      `\n🛡️ *Debilidades:*\n` +
+      `${monster.resist}\n`;
+  }
+
+  if (monster.respawn) {
+    text +=
+      `\n📍 *Respawn:* ` +
+      `${monster.respawn}\n`;
+  }
+
+  if (
+    monster.charmPts != null
+  ) {
+    text +=
+      `\n🎯 *Puntos de charms:* ` +
+      `${monster.charmPts}\n`;
+  }
+
+  if (
+    monster.kills != null
+  ) {
+    text +=
+      `📊 *Muertes para desbloquear:* ` +
+      `${fmt(
+        monster.kills,
+        0
+      )}\n`;
+  }
+
+  if (monster.charmRec) {
+    text +=
+      `🔮 *Charm recomendado:* ` +
+      `${monster.charmRec}\n`;
+  }
+
+  if (monster.loot) {
+    text +=
+      `\n🎁 *Loot:* ` +
+      `${monster.loot}\n`;
+  }
+
+  if (monster.url) {
+    text +=
+      `\n🔎 ${monster.url}`;
+  }
+
+  return text;
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// ERROR / FAIL
+// ─────────────────────────────────────────────────────────────────────────────
+
+async function fail(msg, text) {
+  try {
+    const errorMsg =
+      await msg.reply(text);
 
     try {
-        if (!fs.existsSync(MONSTERS_FILE)) {
-            console.error(`[MonsterLocal] No existe: ${MONSTERS_FILE}`);
-            monsters = [];
-            monsterMap = new Map();
-            return monsters;
-        }
+      await errorMsg.react(
+        '❎'
+      );
+    } catch {}
 
-        const raw = fs.readFileSync(MONSTERS_FILE, 'utf8');
-        const data = JSON.parse(raw);
+    try {
+      await msg.react(
+        '❎'
+      );
+    } catch {}
 
-        if (Array.isArray(data)) {
-            monsters = data;
-        } else if (Array.isArray(data.monsters)) {
-            monsters = data.monsters;
-        } else if (typeof data === 'object' && data !== null) {
-            monsters = Object.values(data);
-        } else {
-            monsters = [];
-        }
+  } catch {}
 
-        monsterMap = new Map();
-
-        for (const monster of monsters) {
-            if (!monster || typeof monster !== 'object') {
-                continue;
-            }
-
-            const name =
-                monster.name ||
-                monster.Name ||
-                monster.monster ||
-                monster.Monster;
-
-            if (!name) {
-                continue;
-            }
-
-            monster.name = String(name);
-
-            monsterMap.set(normalizeName(name), monster);
-        }
-
-        console.log(
-            `[MonsterLocal] Cargados ${monsters.length} monsters desde JSON`
-        );
-
-        return monsters;
-    } catch (error) {
-        console.error(
-            '[MonsterLocal] Error cargando monsters:',
-            error.message
-        );
-
-        monsters = [];
-        monsterMap = new Map();
-
-        return monsters;
-    }
+  return null;
 }
 
-/**
- * Normaliza nombres para búsquedas.
- */
-function normalizeName(name) {
-    return String(name)
-        .toLowerCase()
-        .normalize('NFD')
-        .replace(/[\u0300-\u036f]/g, '')
-        .replace(/[^a-z0-9]+/g, ' ')
-        .trim();
-}
+// ─────────────────────────────────────────────────────────────────────────────
+// HANDLER
+// ─────────────────────────────────────────────────────────────────────────────
 
-/**
- * Distancia Levenshtein.
- */
-function levenshtein(a, b) {
-    a = normalizeName(a);
-    b = normalizeName(b);
+module.exports = async (msg) => {
+  try {
+    const args =
+      msg.body
+        .trim()
+        .split(/\s+/)
+        .slice(1);
 
-    if (a === b) {
-        return 0;
+    if (!args.length) {
+      return await fail(
+        msg,
+        '*Uso correcto:* `!monster <nombre>`\n' +
+        'Ejemplo: `!monster young goanna`'
+      );
     }
 
-    if (!a.length) {
-        return b.length;
+    const query =
+      args.join(' ');
+
+    // Cargar JSON local.
+    const index =
+      await loadIndex();
+
+    // Buscar.
+    const result =
+      search(
+        index,
+        query
+      );
+
+    if (!result.best) {
+      return await fail(
+        msg,
+        `Monster no encontrado: *${query}*`
+      );
     }
 
-    if (!b.length) {
-        return a.length;
+    // Preparar información.
+    const monster =
+      parseMonster(
+        result.best
+      );
+
+    let text =
+      buildMessage(
+        monster
+      );
+
+    // Coincidencia aproximada.
+    if (
+      result.score < 100
+    ) {
+      text =
+        `_Resultado más cercano a "${query}"_\n\n` +
+        text;
+
+      if (
+        result.others.length
+      ) {
+        text +=
+          `\n\n🔁 ¿Quizás buscabas?: ` +
+          result.others
+            .map(
+              (item) =>
+                item.name
+            )
+            .join(', ');
+      }
     }
 
-    const previous = new Array(b.length + 1);
-
-    for (let j = 0; j <= b.length; j++) {
-        previous[j] = j;
-    }
-
-    for (let i = 1; i <= a.length; i++) {
-        const current = new Array(b.length + 1);
-        current[0] = i;
-
-        for (let j = 1; j <= b.length; j++) {
-            const cost = a[i - 1] === b[j - 1] ? 0 : 1;
-
-            current[j] = Math.min(
-                current[j - 1] + 1,
-                previous[j] + 1,
-                previous[j - 1] + cost
-            );
-        }
-
-        for (let j = 0; j <= b.length; j++) {
-            previous[j] = current[j];
-        }
-    }
-
-    return previous[b.length];
-}
-
-/**
- * Obtiene un monster por nombre.
- *
- * Orden:
- * 1. Coincidencia exacta
- * 2. Coincidencia parcial
- * 3. Coincidencia aproximada
- */
-function findMonster(query) {
-    loadMonsters();
-
-    if (!query || typeof query !== 'string') {
-        return null;
-    }
-
-    const normalizedQuery = normalizeName(query);
-
-    if (!normalizedQuery) {
-        return null;
-    }
-
-    // Exacta
-    const exact = monsterMap.get(normalizedQuery);
-
-    if (exact) {
-        return exact;
-    }
-
-    // Parcial
-    const partialMatches = [];
-
-    for (const monster of monsters) {
-        if (!monster || !monster.name) {
-            continue;
-        }
-
-        const normalizedName = normalizeName(monster.name);
-
-        if (
-            normalizedName.includes(normalizedQuery) ||
-            normalizedQuery.includes(normalizedName)
-        ) {
-            partialMatches.push(monster);
-        }
-    }
-
-    if (partialMatches.length > 0) {
-        partialMatches.sort((a, b) => {
-            const aName = normalizeName(a.name);
-            const bName = normalizeName(b.name);
-
-            const aDistance = Math.abs(
-                aName.length - normalizedQuery.length
-            );
-
-            const bDistance = Math.abs(
-                bName.length - normalizedQuery.length
-            );
-
-            return aDistance - bDistance;
-        });
-
-        return partialMatches[0];
-    }
-
-    // Aproximada
-    let bestMonster = null;
-    let bestDistance = Infinity;
-
-    for (const monster of monsters) {
-        if (!monster || !monster.name) {
-            continue;
-        }
-
-        const normalizedName = normalizeName(monster.name);
-
-        const distance = levenshtein(
-            normalizedQuery,
-            normalizedName
-        );
-
-        const maxAllowed = Math.max(
-            2,
-            Math.floor(normalizedQuery.length * 0.4)
-        );
-
-        if (
-            distance <= maxAllowed &&
-            distance < bestDistance
-        ) {
-            bestDistance = distance;
-            bestMonster = monster;
-        }
-    }
-
-    return bestMonster;
-}
-
-/**
- * Busca múltiples monsters.
- */
-function searchMonsters(query, limit = 10) {
-    loadMonsters();
-
-    if (!query || typeof query !== 'string') {
-        return [];
-    }
-
-    const normalizedQuery = normalizeName(query);
-
-    if (!normalizedQuery) {
-        return [];
-    }
-
-    const results = [];
-
-    for (const monster of monsters) {
-        if (!monster || !monster.name) {
-            continue;
-        }
-
-        const normalizedName = normalizeName(monster.name);
-
-        let score = 0;
-
-        if (normalizedName === normalizedQuery) {
-            score = 100;
-        } else if (normalizedName.startsWith(normalizedQuery)) {
-            score = 80;
-        } else if (normalizedName.includes(normalizedQuery)) {
-            score = 60;
-        } else {
-            const distance = levenshtein(
-                normalizedQuery,
-                normalizedName
-            );
-
-            const maxAllowed = Math.max(
-                2,
-                Math.floor(normalizedQuery.length * 0.4)
-            );
-
-            if (distance <= maxAllowed) {
-                score = 40 - distance;
-            }
-        }
-
-        if (score > 0) {
-            results.push({
-                monster,
-                score
-            });
-        }
-    }
-
-    results.sort((a, b) => b.score - a.score);
-
-    return results
-        .slice(0, limit)
-        .map(result => result.monster);
-}
-
-/**
- * Obtiene todos los monsters.
- */
-function getAllMonsters() {
-    return loadMonsters();
-}
-
-/**
- * Cantidad de monsters cargados.
- */
-function getMonsterCount() {
-    loadMonsters();
-    return monsters.length;
-}
-
-/**
- * Busca una propiedad dentro del monster
- * aceptando diferentes nombres de campo.
- */
-function getField(monster, ...fields) {
-    if (!monster || typeof monster !== 'object') {
-        return null;
-    }
-
-    for (const field of fields) {
-        if (
-            monster[field] !== undefined &&
-            monster[field] !== null
-        ) {
-            return monster[field];
-        }
-    }
-
-    return null;
-}
-
-/**
- * Información básica.
- */
-function getBasicInfo(monster) {
-    if (!monster) {
-        return null;
-    }
-
-    return {
-        name: getField(
-            monster,
-            'name',
-            'Name',
-            'monster',
-            'Monster'
-        ),
-
-        level: getField(
-            monster,
-            'level',
-            'Level'
-        ),
-
-        experience: getField(
-            monster,
-            'experience',
-            'Experience',
-            'exp',
-            'Exp'
-        ),
-
-        health: getField(
-            monster,
-            'health',
-            'Health',
-            'hp',
-            'HP'
-        ),
-
-        speed: getField(
-            monster,
-            'speed',
-            'Speed'
-        ),
-
-        armor: getField(
-            monster,
-            'armor',
-            'Armor'
-        ),
-
-        defense: getField(
-            monster,
-            'defense',
-            'Defense'
-        )
-    };
-}
-
-/**
- * Obtiene resistencias.
- */
-function getResistances(monster) {
-    if (!monster) {
-        return null;
-    }
-
-    return getField(
-        monster,
-        'resistances',
-        'Resistances',
-        'resistance',
-        'Resistance'
+    // Responder sin preview para que WhatsApp no intente
+    // cargar la página de Tibiopedia.
+    return await msg.reply(
+      text,
+      undefined,
+      {
+        linkPreview: false,
+      }
     );
-}
 
-/**
- * Obtiene loot.
- */
-function getLoot(monster) {
-    if (!monster) {
-        return null;
-    }
-
-    return getField(
-        monster,
-        'loot',
-        'Loot'
+  } catch (err) {
+    console.log(
+      `❌ [monster] ERROR: ${err.message}`
     );
-}
 
-/**
- * Obtiene charms.
- */
-function getCharms(monster) {
-    if (!monster) {
-        return null;
-    }
-
-    return getField(
-        monster,
-        'charms',
-        'Charms'
+    return await fail(
+      msg,
+      'No pude cargar la información del monster desde el JSON local.'
     );
-}
-
-/**
- * Obtiene información de respawn.
- */
-function getRespawn(monster) {
-    if (!monster) {
-        return null;
-    }
-
-    return getField(
-        monster,
-        'respawn',
-        'Respawn',
-        'spawn',
-        'Spawn'
-    );
-}
-
-/**
- * Recarga manualmente el JSON.
- * Útil si actualizas el archivo sin reiniciar el bot.
- */
-function reloadMonsters() {
-    monsters = null;
-    monsterMap = null;
-
-    return loadMonsters();
-}
-
-/**
- * Estadísticas del archivo local.
- */
-function getStats() {
-    loadMonsters();
-
-    return {
-        total: monsters.length,
-        indexed: monsterMap.size,
-        file: MONSTERS_FILE
-    };
-}
-
-module.exports = {
-    loadMonsters,
-    reloadMonsters,
-
-    findMonster,
-    searchMonsters,
-
-    getAllMonsters,
-    getMonsterCount,
-
-    getBasicInfo,
-    getResistances,
-    getLoot,
-    getCharms,
-    getRespawn,
-
-    getStats,
-
-    normalizeName
+  }
 };
+```
