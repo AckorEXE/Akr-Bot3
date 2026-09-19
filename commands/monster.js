@@ -17,7 +17,7 @@ const axios = require('axios');   // el mismo que usan !rwar y demás comandos
 const DATA_URL      = 'https://hakaimarket.com/monsters_enhanced_complete.json';
 const SITE_URL      = 'https://hakaimarket.com/monsters/';
 const CACHE_FILE    = path.join(__dirname, '..', '.cache', 'hakai_monsters.json'); // raíz del bot/.cache/
-const CACHE_TTL     = 6 * 60 * 60 * 1000;   // datos "frescos" por 6 horas
+const CACHE_TTL     = 24 * 60 * 60 * 1000;  // datos "frescos" por 24 horas (el JSON casi no cambia)
 const FETCH_TIMEOUT = 15000;
 
 // Tiempos de espera tras un error (para NO insistirle al servidor)
@@ -99,7 +99,8 @@ const PAGE_URL       = 'https://hakaimarket.com/monsters';
 const JSON_NAME      = 'monsters_enhanced_complete.json';
 const BROWSER_UA     = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36';
 const NAV_TIMEOUT    = 30000;
-const CHALLENGE_WAIT = 5000;   // si el sitio muestra una verificación, espera a que se resuelva sola
+const CHALLENGE_TRIES = 10;    // si el sitio muestra una verificación, revisa cada segundo si se resolvió sola
+const CHALLENGE_STEP  = 1000;
 const CAPTURE_WAIT   = 3000;
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
@@ -118,21 +119,39 @@ async function downloadViaBrowser(client) {
     await page.setUserAgent(BROWSER_UA);
 
     // Estrategia 1: abrir el JSON directamente, como lo haría una pestaña normal
+    let retryAfter = null;
     try {
       const res = await page.goto(DATA_URL, { waitUntil: 'domcontentloaded', timeout: NAV_TIMEOUT });
       lastStatus = res ? res.status() : 0;
+      const h = res ? res.headers() : {};
+      retryAfter = h['retry-after'] || null;
+
+      // Diagnóstico: quién está respondiendo el bloqueo y por qué
+      if (lastStatus >= 400) {
+        console.log(
+          `⚠️ [monster] Hakai respondió ${lastStatus} | server=${h.server || '-'} | ` +
+          `mitigated=${h['x-vercel-mitigated'] || h['cf-mitigated'] || '-'} | retry-after=${retryAfter || '-'}`
+        );
+      }
 
       if (res && res.ok()) {
         const data = await res.json().catch(() => null);
         if (looksValid(data)) return data;
       }
 
-      // Puede ser una página de verificación que se resuelve sola y recarga: esperar y leer el cuerpo
-      await sleep(CHALLENGE_WAIT);
-      const text = await page.evaluate(() => (document.body ? document.body.innerText : ''));
-      const data = JSON.parse(text);
-      if (looksValid(data)) return data;
+      // Si es una verificación que se resuelve sola y recarga, esperar a que aparezca el JSON
+      for (let i = 0; i < CHALLENGE_TRIES; i++) {
+        await sleep(CHALLENGE_STEP);
+        try {
+          const text = await page.evaluate(() => (document.body ? document.body.innerText : ''));
+          const data = JSON.parse(text);
+          if (looksValid(data)) return data;
+        } catch { /* todavía no es JSON (o la página está recargando) */ }
+      }
     } catch { /* pasa a la estrategia 2 */ }
+
+    // Si el servidor ya nos dijo 429, NO insistir cargando toda la página (sería más peticiones)
+    if (lastStatus === 429) throw httpError(429, retryAfter);
 
     // Estrategia 2: cargar la página /monsters e interceptar el JSON que ella misma pide
     let captured = null;
