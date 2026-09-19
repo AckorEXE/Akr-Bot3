@@ -38,9 +38,7 @@ const LOCAL_JSON = path.join(
 // Página de origen de los datos.
 // Se utiliza únicamente como referencia al final del mensaje.
 // Los datos NO se obtienen de aquí.
-const DEFAULT_SITE_URL = 'https://tibiopedia.pl/monsters/';
-
-const LOOT_MAX = 25;
+const DEFAULT_SITE_URL = 'https://hakaimarket.com/monsters/';
 
 // false = no muestra porcentajes de loot.
 // true  = muestra, por ejemplo: Sword [5.85%]
@@ -370,7 +368,8 @@ function getMonsterUrl(monster) {
     typeof monster.url === 'string' &&
     monster.url.startsWith('http')
   ) {
-    return monster.url;
+    // Reemplazamos el dominio antiguo si existe
+    return monster.url.replace(/https?:\/\/tibiopedia\.pl\/monsters\//, DEFAULT_SITE_URL);
   }
 
   return DEFAULT_SITE_URL + getMonsterSlug(monster);
@@ -592,7 +591,7 @@ function parseResistances(monster) {
 
           const line =
             `${info.emoji} ` +
-            `${info.label.toLowerCase()}: ` +
+            `${info.label}: ` +
             `${fmt(value)}%`;
 
           // Si recibe más de 100%, lo marcamos
@@ -686,7 +685,7 @@ function parseDps(monster) {
         };
 
       return (
-        `   ${info.emoji} ` +
+        `${info.emoji} ` +
         `${info.label} ` +
         `${fmt(pct)}%`
       );
@@ -743,20 +742,8 @@ function parseLoot(monster) {
       return output;
     });
 
-  const shown = items
-    .slice(0, LOOT_MAX)
-    .join(', ');
-
-  if (
-    items.length > LOOT_MAX
-  ) {
-    return (
-      `${shown} ` +
-      `(+${items.length - LOOT_MAX} más)`
-    );
-  }
-
-  return shown;
+  // Mostrar TODOS los items, sin límite
+  return items.join(', ');
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -783,6 +770,21 @@ function parseMonster(entry) {
       monster.health ??
       monster.maxHealth
     );
+
+  // Clasificar resistencias
+  const weak = [];
+  const resistant = [];
+  const immune = [];
+
+  for (const r of resistances.taken) {
+    if (r.value > 100) {
+      weak.push(r);
+    } else if (r.value < 100 && r.value > 0) {
+      resistant.push(r);
+    } else if (r.value === 0) {
+      immune.push(r);
+    }
+  }
 
   return {
     name: entry.name,
@@ -823,8 +825,9 @@ function parseMonster(entry) {
       monster
     ),
 
-    resist:
-      resistances.text,
+    weak: weak.length ? weak : null,
+    resistant: resistant.length ? resistant : null,
+    immune: immune.length ? immune : null,
 
     charmRec:
       recommendCharm(
@@ -879,111 +882,104 @@ function parseMonster(entry) {
 // ─────────────────────────────────────────────────────────────────────────────
 
 function buildMessage(monster) {
-  let text =
-    `👾 *${monster.name}*\n`;
+  const SEP = '━━━━━━━━━━━━━━━';
+  let text = '';
+
+  // ── Cabecera ──
+  text += `👾 *${monster.name.toUpperCase()}*\n`;
 
   if (monster.tags) {
-    text +=
-      `🏷️ ${monster.tags}\n`;
+    text += `${monster.tags}\n`;
   }
 
-  text += '\n';
+  text += `\n${SEP}\n`;
 
-  if (monster.hp != null) {
-    text +=
-      `❤️ *Vida:* ` +
-      `${fmt(monster.hp, 0)}\n`;
-  }
+  // ── Stats ──
+  text += `📊 *Stats*\n`;
 
-  if (monster.exp != null) {
-    text +=
-      `✨ *Experiencia:* ` +
-      `${fmt(monster.exp, 0)}\n`;
-  }
+  const hp = monster.hp != null ? `❤️ HP: ${fmt(monster.hp, 0)}` : null;
+  const exp = monster.exp != null ? `✨ XP: ${fmt(monster.exp, 0)}` : null;
+  const armor = monster.armor != null ? `🛡️ Armadura: ${fmt(monster.armor, 0)}` : null;
+  const speed = monster.speed != null ? `🏃 Vel: ${fmt(monster.speed, 0)}` : null;
+  const mitigation = monster.mitigation ? `🧱 Mitigación: ${monster.mitigation}` : null;
 
-  if (monster.armor != null) {
-    text +=
-      `🛡️ *Armadura:* ` +
-      `${fmt(monster.armor, 0)}\n`;
-  }
+  const statsLine1 = [hp, exp].filter(Boolean).join('        ');
+  const statsLine2 = [armor, speed].filter(Boolean).join('    ');
+  const statsLine3 = mitigation;
 
-  if (monster.mitigation) {
-    text +=
-      `🧱 *Mitigación:* ` +
-      `${monster.mitigation}\n`;
-  }
+  if (statsLine1) text += `${statsLine1}\n`;
+  if (statsLine2) text += `${statsLine2}\n`;
+  if (statsLine3) text += `${statsLine3}\n`;
 
-  if (monster.speed != null) {
-    text +=
-      `👟 *Velocidad:* ` +
-      `${fmt(monster.speed, 0)}\n`;
-  }
-
+  // ── Daño ──
   if (monster.dps) {
-    text +=
-      `\n💥 *Max DPS:* ` +
-      `${fmt(
-        monster.dps.total,
-        0
-      )}\n`;
-
-    if (
-      monster.dps.lines.length
-    ) {
-      text +=
-        monster.dps.lines.join(
-          '\n'
-        ) +
-        '\n';
+    text += `\n💥 *Daño:*\n`;
+    text += `Max DPS: ${fmt(monster.dps.total, 0)}\n`;
+    if (monster.dps.lines.length) {
+      text += monster.dps.lines.join(' | ') + '\n';
     }
   }
 
-  if (monster.resist) {
-    text +=
-      `\n🛡️ *Debilidades:*\n` +
-      `${monster.resist}\n`;
+  // ── Charms ──
+  if (monster.charmRec || monster.charmPts != null) {
+    text += `\n🎯 *Charms:*\n`;
+    if (monster.charmRec) {
+      text += `🔮 Recomendado: ${monster.charmRec}\n`;
+    }
+    if (monster.charmPts != null) {
+      let charmLine = `🎖️ Puntos: ${monster.charmPts}`;
+      if (monster.kills != null) {
+        charmLine += ` (${fmt(monster.kills, 0)} kills)`;
+      }
+      text += charmLine + '\n';
+    }
   }
 
+  text += `${SEP}\n`;
+
+  // ── Resistencias ──
+  const hasResistances = monster.weak || monster.resistant || monster.immune;
+  if (hasResistances) {
+    if (monster.weak) {
+      text += `\n⚡ *Débil a:*\n`;
+      for (const r of monster.weak) {
+        const info = ELEMENTS[r.el] || { emoji: '❔', label: titleCase(r.el) };
+        text += `${info.emoji} ${info.label} → ${fmt(r.value)}%\n`;
+      }
+    }
+
+    if (monster.resistant) {
+      text += `\n🛡️ *Resistente a:*\n`;
+      for (const r of monster.resistant) {
+        const info = ELEMENTS[r.el] || { emoji: '❔', label: titleCase(r.el) };
+        text += `${info.emoji} ${info.label} → ${fmt(r.value)}%\n`;
+      }
+    }
+
+    if (monster.immune) {
+      text += `\n🚫 *Inmune a:*\n`;
+      for (const r of monster.immune) {
+        const info = ELEMENTS[r.el] || { emoji: '❔', label: titleCase(r.el) };
+        text += `${info.emoji} ${info.label}\n`;
+      }
+    }
+  }
+
+  // ── Ubicación ──
   if (monster.respawn) {
-    text +=
-      `\n📍 *Respawn:* ` +
-      `${monster.respawn}\n`;
+    text += `\n📍 *Ubicación:*\n`;
+    text += `${monster.respawn}\n`;
   }
 
-  if (
-    monster.charmPts != null
-  ) {
-    text +=
-      `\n🎯 *Puntos de charms:* ` +
-      `${monster.charmPts}\n`;
-  }
-
-  if (
-    monster.kills != null
-  ) {
-    text +=
-      `📊 *Muertes para desbloquear:* ` +
-      `${fmt(
-        monster.kills,
-        0
-      )}\n`;
-  }
-
-  if (monster.charmRec) {
-    text +=
-      `🔮 *Charm recomendado:* ` +
-      `${monster.charmRec}\n`;
-  }
-
+  // ── Loot ──
   if (monster.loot) {
-    text +=
-      `\n🎁 *Loot:* ` +
-      `${monster.loot}\n`;
+    text += `\n🎁 *Loot:*\n`;
+    text += `${monster.loot}\n`;
   }
 
+  // ── URL ──
   if (monster.url) {
-    text +=
-      `\n🔎 ${monster.url}`;
+    text += `\n🔎 ${monster.url}`;
   }
 
   return text;
@@ -1090,7 +1086,7 @@ module.exports = async (msg) => {
     }
 
     // Responder sin preview para que WhatsApp no intente
-    // cargar la página de Tibiopedia.
+    // cargar la página de Hakai Market.
     return await msg.reply(
       text,
       undefined,
