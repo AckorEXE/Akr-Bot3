@@ -9,8 +9,9 @@
  * - Búsqueda tolerante: exacta, prefijo, palabras sueltas y typos.
  */
 
-const fs   = require('fs');
-const path = require('path');
+const fs    = require('fs');
+const path  = require('path');
+const axios = require('axios');   // el mismo que usan !rwar y demás comandos
 
 // ───────────────────────── Configuración ─────────────────────────
 const DATA_URL      = 'https://hakaimarket.com/monsters_enhanced_complete.json';
@@ -90,10 +91,71 @@ const fmt = (n, dec = 1) =>
   n == null ? null : n.toLocaleString('en-US', { maximumFractionDigits: dec });
 
 // ───────────────────────── Datos: descarga + caché (memoria y disco) ─────────────────────────
+// ── Descarga #1 (principal): desde el navegador embebido de whatsapp-web.js ──────────
+// Mismo método que utils/rubinotApi.js (!rchar, !rguild): abrir una pestaña real en
+// client.pupBrowser en vez de una petición "cruda" con axios, para pasar las
+// protecciones anti-bot del sitio.
+const PAGE_URL       = 'https://hakaimarket.com/monsters';
+const JSON_NAME      = 'monsters_enhanced_complete.json';
+const BROWSER_UA     = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36';
+const NAV_TIMEOUT    = 30000;
+const CHALLENGE_WAIT = 5000;   // si el sitio muestra una verificación, espera a que se resuelva sola
+const CAPTURE_WAIT   = 3000;
+
+const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+const looksValid = (d) => !!d && typeof d === 'object' && (Array.isArray(d) ? d.length > 0 : Object.keys(d).length > 0);
+
+async function downloadViaBrowser(client) {
+  const page = await client.pupBrowser.newPage();
+  let lastStatus = 0;
+
+  try {
+    await page.setRequestInterception(true);
+    page.on('request', (req) => {
+      if (['image', 'media', 'font'].includes(req.resourceType())) req.abort();
+      else req.continue();
+    });
+    await page.setUserAgent(BROWSER_UA);
+
+    // Estrategia 1: abrir el JSON directamente, como lo haría una pestaña normal
+    try {
+      const res = await page.goto(DATA_URL, { waitUntil: 'domcontentloaded', timeout: NAV_TIMEOUT });
+      lastStatus = res ? res.status() : 0;
+
+      if (res && res.ok()) {
+        const data = await res.json().catch(() => null);
+        if (looksValid(data)) return data;
+      }
+
+      // Puede ser una página de verificación que se resuelve sola y recarga: esperar y leer el cuerpo
+      await sleep(CHALLENGE_WAIT);
+      const text = await page.evaluate(() => (document.body ? document.body.innerText : ''));
+      const data = JSON.parse(text);
+      if (looksValid(data)) return data;
+    } catch { /* pasa a la estrategia 2 */ }
+
+    // Estrategia 2: cargar la página /monsters e interceptar el JSON que ella misma pide
+    let captured = null;
+    page.on('response', async (response) => {
+      if (!response.url().includes(JSON_NAME)) return;
+      try { captured = await response.json(); } catch {}
+    });
+    const nav = await page.goto(PAGE_URL, { waitUntil: 'networkidle2', timeout: NAV_TIMEOUT });
+    if (nav && nav.status() >= 400) lastStatus = nav.status();
+    if (!captured) await sleep(CAPTURE_WAIT);
+    if (looksValid(captured)) return captured;
+
+    throw lastStatus >= 400 ? httpError(lastStatus) : new Error('El navegador no obtuvo el JSON');
+  } finally {
+    try { await page.close(); } catch {}
+  }
+}
+
+// ── Descarga #2 (respaldo): axios, solo si no hay navegador o éste falló sin ser 429 ──
 const HEADERS = {
-  'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0 Safari/537.36',
-  'Accept': 'application/json, text/plain, */*',
+  'Accept': '*/*',
   'Referer': 'https://hakaimarket.com/monsters',
+  'User-Agent': BROWSER_UA,
 };
 
 function httpError(status, retryAfterHeader) {
@@ -104,23 +166,26 @@ function httpError(status, retryAfterHeader) {
   return err;
 }
 
-async function download() {
-  if (typeof fetch !== 'function') {
-    // Node < 18: usa axios (el mismo que en !rwar)
-    const axios = require('axios');
-    const r = await axios.get(DATA_URL, { headers: HEADERS, timeout: FETCH_TIMEOUT, validateStatus: () => true });
-    if (r.status < 200 || r.status >= 300) throw httpError(r.status, r.headers['retry-after']);
-    return r.data;
+async function downloadViaAxios() {
+  const r = await axios.get(DATA_URL, {
+    headers: HEADERS,
+    timeout: FETCH_TIMEOUT,
+    validateStatus: () => true,      // manejamos el status nosotros (429, etc.)
+  });
+  if (r.status < 200 || r.status >= 300) throw httpError(r.status, r.headers['retry-after']);
+  return typeof r.data === 'string' ? JSON.parse(r.data) : r.data;
+}
+
+async function download(client) {
+  if (client && client.pupBrowser) {
+    try {
+      return await downloadViaBrowser(client);
+    } catch (err) {
+      console.log('⚠️ Navegador no pudo obtener el JSON:', err.message);
+      if (err.status === 429) throw err;   // ya nos limitaron: no insistir con axios
+    }
   }
-  const ctrl  = new AbortController();
-  const timer = setTimeout(() => ctrl.abort(), FETCH_TIMEOUT);
-  try {
-    const res = await fetch(DATA_URL, { headers: HEADERS, signal: ctrl.signal });
-    if (!res.ok) throw httpError(res.status, res.headers.get('retry-after'));
-    return await res.json();
-  } finally {
-    clearTimeout(timer);
-  }
+  return downloadViaAxios();
 }
 
 // Copia en disco: el JSON tal cual, y su fecha de modificación = fecha de descarga.
@@ -166,7 +231,7 @@ let lastError = null;
 /** Minutos que faltan para poder reintentar (para el mensaje al usuario). */
 const waitMinutes = () => Math.max(1, Math.ceil((blockedUntil - Date.now()) / 60000));
 
-function loadIndex() {
+function loadIndex(client) {
   if (mem.index && Date.now() - mem.ts < CACHE_TTL) return Promise.resolve(mem.index);
   if (inflight) return inflight;
 
@@ -189,7 +254,7 @@ function loadIndex() {
 
       // 3) Descargar
       try {
-        const data = await download();
+        const data = await download(client);
         mem = { index: buildIndex(data), ts: Date.now() };
         blockedUntil = 0;
         lastError = null;
@@ -419,7 +484,7 @@ module.exports = async (msg) => {
 
     let index;
     try {
-      index = await loadIndex();
+      index = await loadIndex(msg.client);
     } catch (err) {
       console.log('❌ No se pudo cargar el JSON:', err.message);
       if (err.status === 429) {
