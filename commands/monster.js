@@ -863,7 +863,7 @@ function buildMessage(monster) {
   let text = '';
 
   // ── Cabecera ──
-  text += `👾 *${monster.name.toUpperCase()}*\n`;
+  text += `👾 *${titleCase(monster.name)}*\n`;
 
   if (monster.tags) {
     text += `${monster.tags}\n`;
