@@ -1,4 +1,3 @@
-```js
 /**
  * !monster <nombre>
  *
@@ -1111,4 +1110,3 @@ module.exports = async (msg) => {
     );
   }
 };
-```
