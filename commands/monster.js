@@ -1,312 +1,377 @@
-const fandom = require('../utils/fandom');
+/**
+ * !monster <nombre>
+ * Fuente: https://hakaimarket.com/monsters_enhanced_complete.json
+ *
+ * - El JSON se descarga solo (no tienes que hacer nada) y se guarda en MEMORIA
+ *   por 6 horas. Ya no se escribe nada en disco.
+ * - Varias consultas simultáneas = 1 sola descarga.
+ * - Si la web falla y ya había datos, usa los que tenía (no rompe el comando).
+ * - Búsqueda tolerante: exacta, prefijo, palabras sueltas y typos.
+ */
 
-function cleanValue(val) {
-  if (!val) return null;
-  val = val.trim();
-  if (val.startsWith('|') || val === '--' || val === '') return null;
-  return val;
-}
+// ───────────────────────── Configuración ─────────────────────────
+const DATA_URL      = 'https://hakaimarket.com/monsters_enhanced_complete.json';
+const SITE_URL      = 'https://hakaimarket.com/monsters/';
+const CACHE_TTL     = 6 * 60 * 60 * 1000;   // 6 horas
+const RETRY_AFTER   = 5 * 60 * 1000;        // si falla la descarga, reintenta en 5 min
+const FETCH_TIMEOUT = 15000;
 
-function getMulti(raw, keys) {
-  for (const key of keys) {
-    const regex = new RegExp(`\\|\\s*${key}\\s*=\\s*([^\\n]+)`, 'i');
-    const match = raw.match(regex);
-    if (match) {
-      const value = cleanValue(match[1]);
-      if (value) return value;
-    }
-  }
-  return null;
-}
+const LOOT_MAX         = 25;     // máximo de items de loot a mostrar
+const SHOW_LOOT_CHANCE = false;  // true => "Sabre (5.85%)"
 
-function isValidMonster(raw) {
-  return /\|\s*hp\s*=/.test(raw) && /\|\s*exp\s*=/.test(raw);
-}
+// ───────────────────────── Tablas ─────────────────────────
+const ELEMENTS = {
+  physical:  { emoji: '👊🏻', label: 'Physical'   },
+  earth:     { emoji: '🌱', label: 'Earth'      },
+  fire:      { emoji: '🔥', label: 'Fire'       },
+  death:     { emoji: '💀', label: 'Death'      },
+  energy:    { emoji: '⚡', label: 'Energy'     },
+  holy:      { emoji: '✝️', label: 'Holy'       },
+  ice:       { emoji: '❄️', label: 'Ice'        },
+  lifedrain: { emoji: '🩸', label: 'Life Drain' },
+  manadrain: { emoji: '🔮', label: 'Mana Drain' },
+  drown:     { emoji: '🌊', label: 'Drown'      },
+};
 
-function parseMaxDamage(raw) {
-  const map = {
-    physical:  '👊🏻',
-    fire:      '🔥',
-    energy:    '⚡',
-    earth:     '🌱',
-    ice:       '❄️',
-    death:     '💀',
-    holy:      '✨',
-    lifedrain: '🩸',
-    manadrain: '🔮',
-    summons:   '👹'
-  };
+// Charms ofensivos, en el MISMO orden que usa Hakai Market (BossesPage.js, constante M).
+// El orden importa: en empate gana el primero de la lista.
+const CHARM_ORDER = [
+  ['physical', 'Wound'],
+  ['earth',    'Poison'],
+  ['ice',      'Freeze'],
+  ['energy',   'Zap'],
+  ['death',    'Curse'],
+  ['fire',     'Enflame'],
+  ['holy',     'Divine Wrath'],
+];
 
-  const matches = [...raw.matchAll(/\{\{Max Damage\|([^}]+)\}\}/gi)];
-  if (matches.length) {
-    let total = 0;
-    let parts = [];
-    matches.forEach(match => {
-      match[1].split('|').forEach(part => {
-        const [type, value] = part.split('=');
-        if (type && value) {
-          const val = parseInt(value.trim().replace(/,/g, '').replace(/\+/g, ''));
-          if (!isNaN(val)) {
-            total += val;
-            const emoji = map[type.trim().toLowerCase()] || '❔';
-            parts.push(`${val} ${emoji} ${type.trim()}`);
-          }
-        }
-      });
-    });
-    if (parts.length) return { total, text: parts.join(', +') };
-  }
+// Respaldo por si algún monster no trae charm_points
+const CHARM_POINTS = { harmless: 1,  trivial: 5,   easy: 15,  medium: 25,   hard: 50   };
+const CHARM_KILLS  = { harmless: 25, trivial: 250, easy: 500, medium: 1000, hard: 2500 };
 
-  const fieldRegex = /\|\s*maxdmg\d*\s*=\s*([^\n|]+)/gi;
-  let total = 0;
-  let parts = [];
-  let m;
-  while ((m = fieldRegex.exec(raw)) !== null) {
-    const rawVal = m[1].trim();
-    const cleaned = rawVal.replace(/,/g, '').replace(/\+/g, '').trim();
-    const numMatch = cleaned.match(/^(\d+)\s*(\w+)?/);
-    if (numMatch) {
-      const val = parseInt(numMatch[1]);
-      const typeRaw = (numMatch[2] || 'physical').toLowerCase();
-      if (!isNaN(val) && val > 0) {
-        total += val;
-        const emoji = map[typeRaw] || '❔';
-        parts.push(`${val} ${emoji} ${typeRaw}`);
-      }
-    }
-  }
-  if (parts.length) return { total, text: parts.join(', +') };
-
-  return null;
-}
-
-function parseLocation(raw) {
-  const val = getMulti(raw, ['location']);
-  if (!val) return null;
-  return val
-    .replace(/\[\[([^\]|]+\|)?([^\]]+)\]\]/g, '$2')
-    .replace(/\{\{[^}]+\}\}/g, '')
-    .replace(/<br\s*\/?>/gi, ', ')
-    .replace(/\s*,\s*/g, ', ')
+// ───────────────────────── Utilidades ─────────────────────────
+const norm = (s) =>
+  String(s ?? '')
+    .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, ' ')
     .trim();
+
+// "Spellweaver's Robe" -> "spellweavers-robe"
+const slugify = (s) =>
+  String(s).toLowerCase().replace(/['’]/g, '').replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
+
+// "life_drain" / "Life Drain" / "lifedrain" -> "lifedrain"
+const canon = (s) => String(s).toLowerCase().replace(/[^a-z]/g, '');
+
+const SMALL = new Set(['of', 'the', 'and', 'in', 'on']);
+const titleCase = (s) =>
+  String(s)
+    .split(' ')
+    .map((w, i) => (i > 0 && SMALL.has(w) ? w : w.charAt(0).toUpperCase() + w.slice(1)))
+    .join(' ');
+
+function num(v) {
+  if (typeof v === 'number') return Number.isFinite(v) ? v : null;
+  if (typeof v !== 'string') return null;
+  const n = parseFloat(v.replace(/,/g, ''));
+  return Number.isFinite(n) ? n : null;
 }
 
-function parseUsedElements(raw) {
-  const val = getMulti(raw, ['usedelements']);
-  if (!val) return null;
-  const emojiMap = {
-    physical: '👊🏻',
-    energy:   '⚡',
-    fire:     '🔥',
-    ice:      '❄️',
-    earth:    '🌱',
-    death:    '💀',
-    holy:     '✨',
-  };
-  return val
-    .split('>')
-    .map(e => {
-      const elem = e.trim();
-      const key = elem.toLowerCase();
-      const emoji = emojiMap[key] || '❔';
-      return `${emoji} ${elem}`;
-    })
-    .join(' > ');
+const fmt = (n, dec = 1) =>
+  n == null ? null : n.toLocaleString('en-US', { maximumFractionDigits: dec });
+
+// ───────────────────────── Datos: descarga + caché en memoria ─────────────────────────
+const HEADERS = {
+  'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0 Safari/537.36',
+  'Accept': 'application/json, text/plain, */*',
+  'Referer': 'https://hakaimarket.com/monsters',
+};
+
+async function download() {
+  if (typeof fetch !== 'function') {
+    // Node < 18: usa axios (el mismo que en !rwar)
+    const axios = require('axios');
+    const r = await axios.get(DATA_URL, { headers: HEADERS, timeout: FETCH_TIMEOUT });
+    return r.data;
+  }
+  const ctrl  = new AbortController();
+  const timer = setTimeout(() => ctrl.abort(), FETCH_TIMEOUT);
+  try {
+    const res = await fetch(DATA_URL, { headers: HEADERS, signal: ctrl.signal });
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    return await res.json();
+  } finally {
+    clearTimeout(timer);
+  }
 }
 
-function parseResistances(raw) {
-  const map = {
-    physicalDmgMod: { emoji: '👊🏻', name: 'physical' },
-    earthDmgMod:    { emoji: '🌱', name: 'earth' },
-    fireDmgMod:     { emoji: '🔥', name: 'fire' },
-    deathDmgMod:    { emoji: '💀', name: 'death' },
-    energyDmgMod:   { emoji: '⚡', name: 'energy' },
-    holyDmgMod:     { emoji: '✝️', name: 'holy' },
-    iceDmgMod:      { emoji: '❄️', name: 'ice' },
-    hpDrainDmgMod:  { emoji: '🩸', name: 'lifedrain' },
-    drownDmgMod:    { emoji: '🌊', name: 'drown' },
-  };
-  let result = [];
-  for (const key in map) {
-    const val = getMulti(raw, [key]);
-    if (val) {
-      const num = parseInt(val.replace('%', '').trim());
-      if (!isNaN(num)) {
-        let text = `${map[key].emoji} ${map[key].name}: ${val}`;
-        if (num > 100) text = `*${text}*`;
-        result.push({ value: num, text });
+function buildIndex(data) {
+  const arr = Array.isArray(data)
+    ? data
+    : Object.values(data).find(Array.isArray) || Object.values(data);
+
+  const list = [];
+  const byNorm = new Map();
+  for (const m of arr) {
+    if (!m || typeof m.name !== 'string') continue;
+    const e = { m, name: m.name, norm: norm(m.name), slug: slugify(m.name) };
+    list.push(e);
+    if (!byNorm.has(e.norm)) byNorm.set(e.norm, e);
+  }
+  if (!list.length) throw new Error('JSON sin monsters');
+  return { list, byNorm };
+}
+
+let mem = { index: null, ts: 0 };
+let inflight = null;
+
+function loadIndex() {
+  if (mem.index && Date.now() - mem.ts < CACHE_TTL) return Promise.resolve(mem.index);
+
+  if (!inflight) {
+    inflight = (async () => {
+      try {
+        const data = await download();
+        mem = { index: buildIndex(data), ts: Date.now() };
+      } catch (err) {
+        console.log('⚠️ Hakai JSON no disponible:', err.message);
+        if (!mem.index) throw err;                       // sin datos previos: falla
+        mem.ts = Date.now() - CACHE_TTL + RETRY_AFTER;   // con datos previos: los usa y reintenta luego
+      } finally {
+        inflight = null;
       }
+      return mem.index;
+    })();
+  }
+  return inflight;
+}
+
+// ───────────────────────── Búsqueda ─────────────────────────
+function levenshtein(a, b) {
+  if (a === b) return 0;
+  const dp = Array.from({ length: b.length + 1 }, (_, i) => i);
+  for (let i = 1; i <= a.length; i++) {
+    let prev = dp[0];
+    dp[0] = i;
+    for (let j = 1; j <= b.length; j++) {
+      const tmp = dp[j];
+      dp[j] = Math.min(dp[j] + 1, dp[j - 1] + 1, prev + (a[i - 1] === b[j - 1] ? 0 : 1));
+      prev = tmp;
     }
   }
-  result.sort((a, b) => b.value - a.value);
-  return result.length ? result.map(x => x.text).join('\n') : null;
+  return dp[b.length];
 }
 
-function calculateCharmPoints(level) {
-  const table = {
-    Harmless: 1,
-    Trivial:  5,
-    Easy:     15,
-    Medium:   25,
-    Hard:     50,
-  };
-  return table[level?.trim()] || null;
+function score(e, q, qTokens) {
+  const n = e.norm;
+  if (n === q) return 100;
+  if (n.startsWith(q)) return 80 - Math.min(n.length - q.length, 20) * 0.5;
+
+  const words = n.split(' ');
+  if (qTokens.every((t) => words.some((w) => w.startsWith(t)))) return 65;
+  if (n.includes(q)) return 55;
+
+  if (q.length >= 4 && Math.abs(n.length - q.length) <= 3) {
+    const d = levenshtein(n, q);
+    if (d <= Math.max(1, Math.floor(q.length / 4))) return 40 - d;
+  }
+  return 0;
 }
 
-function calculateKills(level) {
-  const table = {
-    Harmless: 25,
-    Trivial:  250,
-    Easy:     500,
-    Medium:   1000,
-    Hard:     2500,
-  };
-  return table[level?.trim()] || null;
+function search(index, query) {
+  const q = norm(query);
+  if (!q) return { best: null, others: [] };
+
+  const exact = index.byNorm.get(q);
+  if (exact) return { best: exact, score: 100, others: [] };
+
+  const qTokens = q.split(' ');
+  const ranked = index.list
+    .map((e) => ({ e, s: score(e, q, qTokens) }))
+    .filter((x) => x.s > 0)
+    .sort((a, b) => b.s - a.s || a.e.name.length - b.e.name.length);
+
+  if (!ranked.length) return { best: null, others: [] };
+  return { best: ranked[0].e, score: ranked[0].s, others: ranked.slice(1, 5).map((x) => x.e) };
 }
 
-function parseLoot(raw) {
-  const matches = [...raw.matchAll(/\{\{Loot Item\|([^}]+)\}\}/gi)];
-  if (!matches.length) return null;
-  let result = [];
-  matches.forEach(m => {
-    const parts = m[1].split('|').map(x => x.trim());
-    let count = null;
-    let name  = null;
-    const isCount = /^\d+(-\d+)?$/.test(parts[0]);
-    if (isCount) {
-      count = parts[0];
-      name  = parts[1] || null;
-    } else {
-      name = parts[0];
+// ───────────────────────── Parsers (campos reales del JSON) ─────────────────────────
+
+/**
+ * "resistances": { "Fire": "-10%", "Physical": "+5%", "Death": "+30%" }
+ * Resistencia +5% => recibe 95% del daño; -10% => recibe 110%.
+ */
+function parseResistances(m) {
+  if (!m.resistances || typeof m.resistances !== 'object') return { text: null, taken: [] };
+
+  const taken = [];
+  for (const [k, v] of Object.entries(m.resistances)) {
+    const r = num(v);
+    if (r == null) continue;
+    taken.push({ el: canon(k), value: 100 - r });
+  }
+  taken.sort((a, b) => b.value - a.value);   // sort estable: mantiene el orden del JSON en empates
+
+  const text = taken.length
+    ? taken
+        .map(({ el, value }) => {
+          const info = ELEMENTS[el] || { emoji: '❔', label: el };
+          const line = `${info.emoji} ${info.label.toLowerCase()}: ${fmt(value)}%`;
+          return value > 100 ? `*${line}*` : line;
+        })
+        .join('\n')
+    : null;
+
+  return { text, taken };
+}
+
+/**
+ * Charm recomendado: réplica de la lógica de la web.
+ * Para cada charm ofensivo calcula  chance * damagePercent * vida * multiplicador,
+ * donde el multiplicador es el daño que el monster recibe de ese elemento
+ * (+5% resist => 0.95, -10% => 1.10). Como chance, damagePercent y vida son iguales
+ * para todos los charms, gana el elemento donde más daño recibe; en empate, el primero
+ * de CHARM_ORDER. Siempre recomienda uno si hay vida y al menos una resistencia.
+ */
+function recommendCharm(taken, health) {
+  if (!health) return null;
+  let best = null;
+  let bestValue = 0;
+  for (const [el, name] of CHARM_ORDER) {
+    const t = taken.find((x) => x.el === el);
+    if (t && t.value > bestValue) {          // ">" estricto, igual que la web
+      bestValue = t.value;
+      best = { el, name };
     }
-    if (name) result.push(`${name}${count ? ` (${count})` : ''}`);
-  });
-  return result.join(', ');
+  }
+  return best ? `${ELEMENTS[best.el].emoji} ${best.name}` : null;
 }
 
-function parseMonster(raw) {
-  const dmg           = parseMaxDamage(raw);
-  const bestiarylevel = getMulti(raw, ['bestiarylevel']);
+/** "maxDPS": 1545, "elementPercentages": { "physical": 78.5, "life_drain": 21.5 } */
+function parseDps(m) {
+  const total = num(m.maxDPS);
+  if (total == null) return null;
+
+  const lines = Object.entries(m.elementPercentages || {})
+    .map(([k, v]) => ({ el: canon(k), pct: num(v) }))
+    .filter((x) => x.pct > 0)
+    .sort((a, b) => b.pct - a.pct)
+    .map(({ el, pct }) => {
+      const info = ELEMENTS[el] || { emoji: '❔', label: titleCase(el) };
+      return `   ${info.emoji} ${info.label} ${fmt(pct)}%`;
+    });
+
+  return { total, lines };
+}
+
+/** "loot": [{ name, chance (sobre 100000), maxCount, rarity }] */
+function parseLoot(m) {
+  if (!Array.isArray(m.loot) || !m.loot.length) return null;
+
+  const items = m.loot
+    .filter((i) => i && i.name)
+    .map((i) => {
+      let out = titleCase(i.name);
+      if (i.maxCount > 1) out += ` (máx. ${i.maxCount})`;
+      if (SHOW_LOOT_CHANCE && i.chance != null) out += ` [${fmt(i.chance / 1000, 2)}%]`;
+      return out;
+    });
+
+  const shown = items.slice(0, LOOT_MAX).join(', ');
+  return items.length > LOOT_MAX ? `${shown} (+${items.length - LOOT_MAX} más)` : shown;
+}
+
+function parseMonster(e) {
+  const m = e.m;
+  const diff = m.difficulty ? String(m.difficulty).toLowerCase() : null;
+  const res = parseResistances(m);
+
   return {
-    name:         getMulti(raw, ['name']),
-    hp:           getMulti(raw, ['hp']),
-    exp:          getMulti(raw, ['exp']),
-    maxdmg:       dmg,
-    usedelements: parseUsedElements(raw),
-    resist:       parseResistances(raw),
-    location:     parseLocation(raw),
-    charmPoints:  calculateCharmPoints(bestiarylevel),
-    kills:        calculateKills(bestiarylevel),
-    loot:         parseLoot(raw),
+    name:       e.name,
+    hp:         num(m.health ?? m.maxHealth),   // OJO: "hp" del JSON trae la experiencia, la vida real es "health"
+    exp:        num(m.experience),
+    armor:      num(m.armor),
+    mitigation: m.mitigation != null ? (typeof m.mitigation === 'number' ? `${m.mitigation}%` : String(m.mitigation)) : null,
+    speed:      num(m.speed),
+    tags:       [m.class, m.difficulty, m.role].filter(Boolean).join(' • '),
+    dps:        parseDps(m),
+    resist:     res.text,
+    charmRec:   recommendCharm(res.taken, num(m.health ?? m.maxHealth)),
+    respawn:    Array.isArray(m.respawn) && m.respawn.length ? m.respawn.join(', ') : null,
+    charmPts:   num(m.charm_points) ?? (diff ? CHARM_POINTS[diff] : null) ?? null,
+    kills:      diff ? CHARM_KILLS[diff] ?? null : null,
+    loot:       parseLoot(m),
   };
 }
 
-// 🔑 Convierte "king zelos" → "King_Zelos" y variantes para buscar directo
-function queryToTitleVariants(query) {
-  const titleCase = query
-    .trim()
-    .split(' ')
-    .map(w => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase())
-    .join('_');
+// ───────────────────────── Mensaje ─────────────────────────
+function buildMessage(s, slug) {
+  let t = `👾 *${s.name}*\n`;
+  if (s.tags) t += `🏷️ ${s.tags}\n`;
+  t += '\n';
 
-  const upperFirst = query.trim().charAt(0).toUpperCase() + query.trim().slice(1).toLowerCase();
-  const upperFirst_ = upperFirst.replace(/ /g, '_');
+  if (s.hp  != null) t += `❤️ *Vida:* ${fmt(s.hp, 0)}\n`;
+  if (s.exp != null) t += `✨ *Experiencia:* ${fmt(s.exp, 0)}\n`;
+  if (s.armor != null)  t += `🛡️ *Armadura:* ${fmt(s.armor, 0)}\n`;
+  if (s.mitigation)     t += `🧱 *Mitigación:* ${s.mitigation}\n`;
+  if (s.speed != null)  t += `👟 *Velocidad:* ${fmt(s.speed, 0)}\n`;
 
-  return [
-    titleCase,
-    upperFirst_,
-    query.trim().replace(/ /g, '_'),
-  ].filter((v, i, arr) => arr.indexOf(v) === i); // deduplicar
+  if (s.dps) {
+    t += `\n💥 *Max DPS:* ${fmt(s.dps.total, 0)}\n`;
+    if (s.dps.lines.length) t += s.dps.lines.join('\n') + '\n';
+  }
+
+  if (s.resist) t += `\n🛡️ *Debilidades:*\n${s.resist}\n`;
+
+  if (s.respawn) t += `\n📍 *Respawn:* ${s.respawn}\n`;
+
+  if (s.charmPts != null) t += `\n🎯 *Puntos de charms:* ${s.charmPts}\n`;
+  if (s.kills    != null) t += `📊 *Muertes para desbloquear:* ${fmt(s.kills, 0)}\n`;
+  if (s.charmRec)         t += `🔮 *Charm recomendado:* ${s.charmRec}\n`;
+
+  if (s.loot) t += `\n🎁 *Loot:* ${s.loot}\n`;
+
+  t += `\n🔎 ${SITE_URL}${slug}`;
+  return t;
 }
 
-// 🚀 Prueba una lista de títulos EN PARALELO y devuelve el primero válido
-// respetando el orden de prioridad del array (no el orden de respuesta).
-async function tryTitles(titles) {
-  if (!titles.length) return null;
-
-  const settled = await Promise.all(
-    titles.map(async (title) => {
-      const raw = await fandom.getPage(title);
-      if (raw && isValidMonster(raw)) return { title, content: raw };
-      return null;
-    })
-  );
-
-  return settled.find(Boolean) || null;
+async function fail(msg, text) {
+  const errorMsg = await msg.reply(text);
+  await errorMsg.react('❎');
+  await msg.react('❎');
+  return null;
 }
 
+// ───────────────────────── Handler ─────────────────────────
 module.exports = async (msg) => {
   try {
     const args = msg.body.split(' ').slice(1);
 
-    if (args.length === 0) {
-      const errorMsg = await msg.reply(
-        '*Uso correcto:* `!monster <nombre>`\nEjemplo: `!monster dragon lord`'
-      );
-      await errorMsg.react('❎');
-      await msg.react('❎');
-      return null;
+    if (!args.length) {
+      return await fail(msg, '*Uso correcto:* `!monster <nombre>`\nEjemplo: `!monster orclops bloodbreaker`');
     }
 
     const query = args.join(' ');
 
-    // ── Paso 1: intentar títulos directos, todos en paralelo ────────────────
-    const variants = queryToTitleVariants(query);
-    let found = await tryTitles(variants);
-
-    // ── Paso 2: si no encontró, usar search y probar resultados en paralelo ─
-    if (!found) {
-      const results = await fandom.search(query);
-
-      if (!results.length) {
-        const errorMsg = await msg.reply('Monster no encontrado.');
-        await errorMsg.react('❎');
-        await msg.react('❎');
-        return null;
-      }
-
-      const titles = results.map(r => r.title.replace(/ /g, '_'));
-      found = await tryTitles(titles);
+    let index;
+    try {
+      index = await loadIndex();
+    } catch (err) {
+      console.log('❌ No se pudo cargar el JSON:', err.message);
+      return await fail(msg, 'No pude obtener los datos de Hakai Market. Intenta de nuevo en un momento.');
     }
 
-    if (!found) {
-      const errorMsg = await msg.reply('No se encontró un monster válido.');
-      await errorMsg.react('❎');
-      await msg.react('❎');
-      return null;
+    const { best, score: sc, others } = search(index, query);
+    if (!best) return await fail(msg, 'Monster no encontrado.');
+
+    let text = buildMessage(parseMonster(best), best.slug);
+
+    // Coincidencia aproximada: avisamos y sugerimos alternativas
+    if (sc < 100) {
+      text = `_Resultado más cercano a "${query}"_\n\n${text}`;
+      if (others.length) text += `\n\n🔁 ¿Quizás buscabas?: ${others.map((o) => o.name).join(', ')}`;
     }
-
-    const { title, content } = found;
-    const s = parseMonster(content);
-
-    let text = `👾 *${s.name || query}*\n\n`;
-    if (s.hp)  text += `❤️ *Vida:* ${s.hp}\n`;
-    if (s.exp) text += `✨ *Experiencia:* ${s.exp}\n`;
-
-    if (s.maxdmg) {
-      text += `\n💥 *Daño máximo:* ${s.maxdmg.total}\n`;
-      text += `(${s.maxdmg.text})\n`;
-    }
-
-    if (s.usedelements)
-      text += `⚔️ *Elementos usados:* ${s.usedelements}\n`;
-
-    if (s.resist)
-      text += `\n🛡️ *Debilidades:*\n${s.resist}\n`;
-
-    if (s.location)
-      text += `\n📍 *Ubicación:* ${s.location}\n`;
-
-    if (s.charmPoints)
-      text += `\n🎯 *Puntos de charms:* ${s.charmPoints}\n`;
-
-    if (s.kills)
-      text += `📊 *Muertes para desbloquear:* ${s.kills}\n`;
-
-    if (s.loot)
-      text += `\n🎁 *Loot:* ${s.loot}\n`;
-
-    text += `\n🔎 https://tibia.fandom.com/wiki/${title}`;
 
     return await msg.reply(text, undefined, { linkPreview: false });
 
