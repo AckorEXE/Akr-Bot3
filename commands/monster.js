@@ -9,15 +9,23 @@
  * - Búsqueda tolerante: exacta, prefijo, palabras sueltas y typos.
  */
 
+const fs   = require('fs');
+const path = require('path');
+
 // ───────────────────────── Configuración ─────────────────────────
 const DATA_URL      = 'https://hakaimarket.com/monsters_enhanced_complete.json';
 const SITE_URL      = 'https://hakaimarket.com/monsters/';
-const CACHE_TTL     = 6 * 60 * 60 * 1000;   // 6 horas
-const RETRY_AFTER   = 5 * 60 * 1000;        // si falla la descarga, reintenta en 5 min
+const CACHE_FILE    = path.join(__dirname, '..', '.cache', 'hakai_monsters.json'); // raíz del bot/.cache/
+const CACHE_TTL     = 6 * 60 * 60 * 1000;   // datos "frescos" por 6 horas
 const FETCH_TIMEOUT = 15000;
 
+// Tiempos de espera tras un error (para NO insistirle al servidor)
+const WAIT_RATE_LIMIT = 10 * 60 * 1000;     // HTTP 429 sin Retry-After
+const WAIT_OTHER      = 60 * 1000;          // cualquier otro error
+const WAIT_MAX        = 60 * 60 * 1000;     // tope si el servidor pide esperar más
+
 const LOOT_MAX         = 25;     // máximo de items de loot a mostrar
-const SHOW_LOOT_CHANCE = false;  // true => "Sabre (5.85%)"
+const SHOW_LOOT_CHANCE = false;  // true => "Sabre [5.85%]"
 
 // ───────────────────────── Tablas ─────────────────────────
 const ELEMENTS = {
@@ -81,29 +89,56 @@ function num(v) {
 const fmt = (n, dec = 1) =>
   n == null ? null : n.toLocaleString('en-US', { maximumFractionDigits: dec });
 
-// ───────────────────────── Datos: descarga + caché en memoria ─────────────────────────
+// ───────────────────────── Datos: descarga + caché (memoria y disco) ─────────────────────────
 const HEADERS = {
   'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0 Safari/537.36',
   'Accept': 'application/json, text/plain, */*',
   'Referer': 'https://hakaimarket.com/monsters',
 };
 
+function httpError(status, retryAfterHeader) {
+  const err = new Error(`HTTP ${status}`);
+  err.status = status;
+  const secs = parseInt(retryAfterHeader, 10);
+  if (Number.isFinite(secs) && secs > 0) err.retryAfter = secs * 1000;
+  return err;
+}
+
 async function download() {
   if (typeof fetch !== 'function') {
     // Node < 18: usa axios (el mismo que en !rwar)
     const axios = require('axios');
-    const r = await axios.get(DATA_URL, { headers: HEADERS, timeout: FETCH_TIMEOUT });
+    const r = await axios.get(DATA_URL, { headers: HEADERS, timeout: FETCH_TIMEOUT, validateStatus: () => true });
+    if (r.status < 200 || r.status >= 300) throw httpError(r.status, r.headers['retry-after']);
     return r.data;
   }
   const ctrl  = new AbortController();
   const timer = setTimeout(() => ctrl.abort(), FETCH_TIMEOUT);
   try {
     const res = await fetch(DATA_URL, { headers: HEADERS, signal: ctrl.signal });
-    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    if (!res.ok) throw httpError(res.status, res.headers.get('retry-after'));
     return await res.json();
   } finally {
     clearTimeout(timer);
   }
+}
+
+// Copia en disco: el JSON tal cual, y su fecha de modificación = fecha de descarga.
+// Así, reiniciar el bot NO vuelve a pedirle nada a Hakai mientras la copia sea reciente.
+async function readDisk() {
+  try {
+    const [st, txt] = await Promise.all([fs.promises.stat(CACHE_FILE), fs.promises.readFile(CACHE_FILE, 'utf8')]);
+    return { data: JSON.parse(txt), ts: st.mtimeMs };
+  } catch {
+    return null;
+  }
+}
+
+async function writeDisk(data) {
+  try {
+    await fs.promises.mkdir(path.dirname(CACHE_FILE), { recursive: true });
+    await fs.promises.writeFile(CACHE_FILE, JSON.stringify(data));
+  } catch { /* opcional */ }
 }
 
 function buildIndex(data) {
@@ -125,25 +160,53 @@ function buildIndex(data) {
 
 let mem = { index: null, ts: 0 };
 let inflight = null;
+let blockedUntil = 0;     // no intentar descargar antes de esta hora
+let lastError = null;
+
+/** Minutos que faltan para poder reintentar (para el mensaje al usuario). */
+const waitMinutes = () => Math.max(1, Math.ceil((blockedUntil - Date.now()) / 60000));
 
 function loadIndex() {
   if (mem.index && Date.now() - mem.ts < CACHE_TTL) return Promise.resolve(mem.index);
+  if (inflight) return inflight;
 
-  if (!inflight) {
-    inflight = (async () => {
+  inflight = (async () => {
+    try {
+      // 1) Sin datos en memoria (bot recién iniciado): intenta la copia en disco
+      if (!mem.index) {
+        const disk = await readDisk();
+        if (disk) {
+          try { mem = { index: buildIndex(disk.data), ts: disk.ts }; } catch { /* copia dañada: se ignora */ }
+          if (mem.index && Date.now() - mem.ts < CACHE_TTL) return mem.index;
+        }
+      }
+
+      // 2) En "castigo" por un error reciente: no volver a molestar al servidor
+      if (Date.now() < blockedUntil) {
+        if (mem.index) return mem.index;   // datos viejos > nada
+        throw lastError;
+      }
+
+      // 3) Descargar
       try {
         const data = await download();
         mem = { index: buildIndex(data), ts: Date.now() };
+        blockedUntil = 0;
+        lastError = null;
+        writeDisk(data);
       } catch (err) {
-        console.log('⚠️ Hakai JSON no disponible:', err.message);
-        if (!mem.index) throw err;                       // sin datos previos: falla
-        mem.ts = Date.now() - CACHE_TTL + RETRY_AFTER;   // con datos previos: los usa y reintenta luego
-      } finally {
-        inflight = null;
+        const wait = Math.min(err.retryAfter ?? (err.status === 429 ? WAIT_RATE_LIMIT : WAIT_OTHER), WAIT_MAX);
+        blockedUntil = Date.now() + wait;
+        lastError = err;
+        console.log(`⚠️ Hakai JSON no disponible: ${err.message}. Sin reintentar por ${Math.round(wait / 60000)} min.`);
+        if (!mem.index) throw err;
       }
       return mem.index;
-    })();
-  }
+    } finally {
+      inflight = null;
+    }
+  })();
+
   return inflight;
 }
 
@@ -359,6 +422,9 @@ module.exports = async (msg) => {
       index = await loadIndex();
     } catch (err) {
       console.log('❌ No se pudo cargar el JSON:', err.message);
+      if (err.status === 429) {
+        return await fail(msg, `Hakai Market está limitando las consultas. Intenta de nuevo en ~${waitMinutes()} min.`);
+      }
       return await fail(msg, 'No pude obtener los datos de Hakai Market. Intenta de nuevo en un momento.');
     }
 
