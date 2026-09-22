@@ -1,4 +1,4 @@
-// commands/boosted.js
+// commands/rboosted.js
 const axios = require('axios');
 
 const API_URL = 'https://api.rubinottools.com/api/boosts';
@@ -6,7 +6,6 @@ const API_URL = 'https://api.rubinottools.com/api/boosts';
 /**
  * Convierte un nombre a formato URL para Tibia Fandom.
  * Ej: "Tropical Desolator" -> "Tropical_Desolator"
- * Cada palabra empieza en mayúscula y los espacios se reemplazan por "_".
  */
 function toFandomSlug(name) {
     if (!name) return '';
@@ -18,8 +17,8 @@ function toFandomSlug(name) {
 }
 
 /**
- * Obtiene la información de los boosts (Boss y Creature) desde RubinotTools.
- * La API requiere cabeceras específicas para evitar el error 403 (Forbidden).
+ * Obtiene la información de los boosts desde RubinotTools.
+ * Cabeceras necesarias para evitar el error 403 (Forbidden).
  */
 async function fetchBoosts() {
     const { data } = await axios.get(API_URL, {
@@ -35,7 +34,7 @@ async function fetchBoosts() {
 }
 
 /**
- * Formatea el mensaje con el estilo solicitado y enlaces a la wiki.
+ * Formatea el mensaje con el estilo solicitado.
  */
 function formatBoostMessage(data) {
     const bossName = data.boss?.name || 'Desconocido';
@@ -44,12 +43,15 @@ function formatBoostMessage(data) {
     const bossSlug = toFandomSlug(bossName);
     const creatureSlug = toFandomSlug(creatureName);
 
+    // Enlaces completos con https://
     const bossUrl = `https://tibia.fandom.com/wiki/${bossSlug}`;
     const creatureUrl = `https://tibia.fandom.com/wiki/${creatureSlug}`;
 
-    let text = `*🚀 Criaturas Boostadas:*\n`;
-    text += `👹 *Boosted Creature:* ${creatureName}\n${creatureUrl}\n`;
-    text += `🐾 *Boosted Boss:* ${bossName}\n${bossUrl}`;
+    let text = `🚀 *Boost del día*\n\n`;
+    text += `👾 *Criatura:* ${creatureName}\n`;
+    text += `🔎 ${creatureUrl}\n\n`;
+    text += `👹 *Boss:* ${bossName}\n`;
+    text += `🔎 ${bossUrl}`;
 
     return text;
 }
@@ -59,24 +61,28 @@ module.exports = async (msg) => {
         const data = await fetchBoosts();
 
         if (!data || !data.boss || !data.creature) {
-            return await msg.reply('No se pudo obtener la información de los boosts en este momento. La API devolvió datos vacíos.');
+            return await msg.reply(
+                'No se pudo obtener la información de los boosts en este momento.',
+                null,
+                { linkPreview: false }
+            );
         }
 
         const text = formatBoostMessage(data);
-        return await msg.reply(text, undefined, { linkPreview: false });
+        return await msg.reply(text, null, { linkPreview: false });
 
     } catch (error) {
-        console.error('Error en comando boosted:', error.response?.status || error.code || error.message);
+        console.error('Error en comando rboosted:', error.response?.status || error.code || error.message);
 
         let errorMessage = 'Ocurrió un error al consultar los boosts. ';
         if (error.response?.status === 403) {
-            errorMessage += 'La API bloqueó la petición (Error 403). Esto suele pasar si las cabeceras no son las correctas.';
+            errorMessage += 'La API bloqueó la petición (Error 403).';
         } else if (error.code === 'ECONNABORTED') {
             errorMessage += 'La petición tardó demasiado. Intenta de nuevo.';
         } else {
             errorMessage += 'Por favor, intenta más tarde.';
         }
 
-        return await msg.reply(errorMessage);
+        return await msg.reply(errorMessage, null, { linkPreview: false });
     }
 };
