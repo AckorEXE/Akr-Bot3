@@ -49,7 +49,7 @@ module.exports = async (msg) => {
 
     const rashid = rashidByDay[day];
     if (!rashid) {
-      return await msg.reply('❌ No se pudo determinar la ubicación de Rashid hoy.');
+      return await msg.reply('No se pudo determinar la ubicación de Rashid hoy.');
     }
 
     // ⏱️ Calcular tiempo restante para el próximo Server Save
