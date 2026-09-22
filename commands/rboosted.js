@@ -3,10 +3,12 @@ const axios = require('axios');
 
 const API_URL = 'https://api.rubinottools.com/api/boosts';
 
-/**
- * Convierte un nombre a formato URL para Tibia Fandom.
- * Ej: "Tropical Desolator" -> "Tropical_Desolator"
- */
+/* =========================
+   HELPERS
+========================= */
+
+// Convierte un nombre a formato URL para Tibia Fandom.
+// Ej: "Tropical Desolator" -> "Tropical_Desolator"
 function toFandomSlug(name) {
     if (!name) return '';
     return name
@@ -16,10 +18,18 @@ function toFandomSlug(name) {
         .join('_');
 }
 
-/**
- * Obtiene la información de los boosts desde RubinotTools.
- * Cabeceras necesarias para evitar el error 403 (Forbidden).
- */
+async function asyncReply(msg, text) {
+    try { return await msg.reply(text, null, { linkPreview: false }); } catch { return null; }
+}
+
+async function asyncReact(target, emoji) {
+    try { await target.react(emoji); } catch {}
+}
+
+/* =========================
+   API
+========================= */
+
 async function fetchBoosts() {
     const { data } = await axios.get(API_URL, {
         headers: {
@@ -33,9 +43,10 @@ async function fetchBoosts() {
     return data;
 }
 
-/**
- * Formatea el mensaje con el estilo solicitado.
- */
+/* =========================
+   FORMATO DEL MENSAJE
+========================= */
+
 function formatBoostMessage(data) {
     const bossName = data.boss?.name || 'Desconocido';
     const creatureName = data.creature?.name || 'Desconocida';
@@ -43,11 +54,10 @@ function formatBoostMessage(data) {
     const bossSlug = toFandomSlug(bossName);
     const creatureSlug = toFandomSlug(creatureName);
 
-    // Enlaces completos con https://
     const bossUrl = `https://tibia.fandom.com/wiki/${bossSlug}`;
     const creatureUrl = `https://tibia.fandom.com/wiki/${creatureSlug}`;
 
-    let text = `🚀 *Boost del día*\n\n`;
+    let text = `🚀 *Boosted del día*\n\n`;
     text += `👾 *Criatura:* ${creatureName}\n`;
     text += `🔎 ${creatureUrl}\n\n`;
     text += `👹 *Boss:* ${bossName}\n`;
@@ -56,33 +66,37 @@ function formatBoostMessage(data) {
     return text;
 }
 
+/* =========================
+   COMANDO
+========================= */
+
 module.exports = async (msg) => {
     try {
         const data = await fetchBoosts();
 
         if (!data || !data.boss || !data.creature) {
-            return await msg.reply(
-                'No se pudo obtener la información de los boosts en este momento.',
-                null,
-                { linkPreview: false }
+            const errorMsg = await asyncReply(
+                msg,
+                'No se pudo obtener la información de los boosts en este momento.'
             );
+            await asyncReact(errorMsg, '❎');
+            await asyncReact(msg, '❎');
+            return null;
         }
 
         const text = formatBoostMessage(data);
-        return await msg.reply(text, null, { linkPreview: false });
+        return asyncReply(msg, text.trim());
 
-    } catch (error) {
-        console.error('Error en comando rboosted:', error.response?.status || error.code || error.message);
+    } catch (err) {
+        console.log('ERROR rboosted:', err.response?.status || err.code || err.message);
 
-        let errorMessage = 'Ocurrió un error al consultar los boosts. ';
-        if (error.response?.status === 403) {
-            errorMessage += 'La API bloqueó la petición (Error 403).';
-        } else if (error.code === 'ECONNABORTED') {
-            errorMessage += 'La petición tardó demasiado. Intenta de nuevo.';
-        } else {
-            errorMessage += 'Por favor, intenta más tarde.';
-        }
+        const failMessage = err.response?.status === 403
+            ? 'La API de RubinotTools bloqueó la petición (Error 403). Intenta de nuevo en un momento.'
+            : 'No se pudo obtener la información de los boosts. Intenta de nuevo más tarde.';
 
-        return await msg.reply(errorMessage, null, { linkPreview: false });
+        const errorMsg = await asyncReply(msg, failMessage);
+        await asyncReact(errorMsg, '❎');
+        await asyncReact(msg, '❎');
+        return null;
     }
 };
