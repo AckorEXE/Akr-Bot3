@@ -40,7 +40,7 @@ const commandEmojis = {
     rstats: '🔰',
     rwar: '🔰',
     rwarchar: '🔰',
-    rrboosted: '🔰',
+    rboosted: '🔰',
 };
 
 
@@ -63,7 +63,7 @@ const cooldownCommands = {
     rstats: 3,
     rwar: 3,
     rwarchar: 3,
-    rrboosted: 3,
+    rboosted: 3,
 };
 
 // cooldowns[userId][command] = { last, warned }
