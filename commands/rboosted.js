@@ -63,7 +63,7 @@ module.exports = async (msg) => {
         }
 
         const text = formatBoostMessage(data);
-        return await msg.reply(text);
+        return await msg.reply(text, undefined, { linkPreview: false });
 
     } catch (error) {
         console.error('Error en comando boosted:', error.response?.status || error.code || error.message);
