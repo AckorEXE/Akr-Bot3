@@ -25,6 +25,7 @@ module.exports = async (msg) => {
         '• `!rstats <guild>` - Análisis de guild',
         '• `!rwar <guild1, guild2>` - Estado de la war',
         '• `!rwarchar <nombre>` - Desempeño en war',
+        '• `!rboosted` - Info boosted del día',
         '',
         '📥 *DESCARGAS*',
         '• `!elfbot` - Descargar ElfBot',
