@@ -44,6 +44,11 @@ const DEFAULT_SITE_URL = 'https://hakaimarket.com/monsters/';
 // true  = muestra, por ejemplo: Sword [5.85%]
 const SHOW_LOOT_CHANCE = false;
 
+// true  = muestra el valor promedio del loot (average_loot) cuando exista
+//         en el JSON, ej: "💰 Valor promedio: ~40,247 gp"
+// false = lo oculta.
+const SHOW_AVERAGE_LOOT = true;
+
 // ─────────────────────────────────────────────────────────────────────────────
 // ELEMENTOS
 // ─────────────────────────────────────────────────────────────────────────────
@@ -630,10 +635,12 @@ function recommendCharm(
 // ─────────────────────────────────────────────────────────────────────────────
 
 function parseDps(monster) {
-  const total = num(monster.maxDPS);
+  let total = num(monster.maxDPS);
 
-  if (total == null) {
-    return null;
+  // Si el Max DPS es 0 (o negativo), no aporta información útil,
+  // así que lo tratamos igual que si no existiera.
+  if (total != null && total <= 0) {
+    total = null;
   }
 
   const lines = Object.entries(
@@ -664,6 +671,12 @@ function parseDps(monster) {
         `${fmt(pct)}%`
       );
     });
+
+  // Si no hay Max DPS útil (era 0/nulo) ni desglose por elemento,
+  // no hay nada que mostrar en la sección de Daño.
+  if (total == null && !lines.length) {
+    return null;
+  }
 
   return {
     total,
@@ -847,6 +860,15 @@ function parseMonster(entry) {
         monster
       ),
 
+    averageLoot:
+      SHOW_AVERAGE_LOOT &&
+      monster.average_loot != null
+        ? fmt(
+            num(monster.average_loot),
+            0
+          )
+        : null,
+
     url:
       getMonsterUrl(
         monster
@@ -891,7 +913,9 @@ function buildMessage(monster) {
   // ── Daño ──
   if (monster.dps) {
     text += `\n💥 *Daño:*\n`;
-    text += `Max DPS: ${fmt(monster.dps.total, 0)}\n`;
+    if (monster.dps.total != null) {
+      text += `Max DPS: ${fmt(monster.dps.total, 0)}\n`;
+    }
     if (monster.dps.lines.length) {
       text += monster.dps.lines.join(' | ') + '\n';
     }
@@ -953,6 +977,10 @@ function buildMessage(monster) {
   if (monster.loot) {
     text += `\n🎁 *Loot:*\n`;
     text += `${monster.loot}\n`;
+
+    if (monster.averageLoot) {
+      text += `💰 Valor promedio: ~${monster.averageLoot} gp\n`;
+    }
   }
 
   // ── URL ──
