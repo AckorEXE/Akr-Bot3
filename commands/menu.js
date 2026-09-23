@@ -14,6 +14,7 @@ module.exports = async (msg) => {
         '🐉 *TIBIA*',
         '• `!item <nombre>` - Info de item',
         '• `!monster <nombre>` - Info de monstruo',
+        '• `!boss <nombre>` - Info de boss',
         '• `!shared <nivel>` - Calcula shared exp',
         '• `!rashid` - Ubicación de Rashid hoy',
         '• `!imbuement <list | type | nombre>` - Info de imbuements',
