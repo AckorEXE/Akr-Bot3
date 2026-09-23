@@ -19,6 +19,7 @@ const commandEmojis = {
     // tibia
     item: '🛡️',
     monster: '👾',
+    boss: '👹',
     shared: '🧠',
     rashid: '🧞',
     imbuement: '🔥',
@@ -53,6 +54,7 @@ const cooldownCommands = {
     sticker: 3,
     item: 3,
     monster: 3,
+    boss: 3,
     rashid: 3,
     imbuement: 3,
     food: 3,
@@ -190,6 +192,7 @@ const kick = require('./commands/kick');
 const shared = require('./commands/shared');
 const item = require('./commands/item');
 const monster = require('./commands/monster');
+const boss = require('./commands/boss');
 const rashid = require('./commands/rashid');
 const sticker = require('./commands/sticker');
 const elfbot = require('./commands/elfbot');
@@ -224,6 +227,7 @@ const commands = {
     // 🐉 Tibia
     item,
     monster,
+    boss,
     shared,
     rashid,
     imbuement,
