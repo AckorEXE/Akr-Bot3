@@ -768,7 +768,7 @@ function parseLoot(boss) {
     .map((item) => {
       let output = titleCase(
         item.name
-      );
+      ); Attacks & Combat:
 
       if (
         item.maxCount != null &&
@@ -891,7 +891,7 @@ function buildMessage(boss) {
   let text = '';
 
   // ── Cabecera ──
-  text += `👑 *${titleCase(boss.name)}*\n`;
+  text += `👹 *${titleCase(boss.name)}*\n`;
 
   if (boss.tags) {
     text += `${boss.tags}\n`;
@@ -930,11 +930,11 @@ function buildMessage(boss) {
     text += `\n🏅 *Bosstiary:*\n`;
 
     if (boss.bossPoints) {
-      text += `🏆 Boss Points: ${boss.bossPoints}\n`;
+      text += `🎖️ Puntos: ${boss.bossPoints}\n`;
     }
 
     if (boss.killsNeeded) {
-      text += `🎯 Kills needed: ${boss.killsNeeded}\n`;
+      text += `🎯 Muertes necesarias: ${boss.killsNeeded}\n`;
     }
   }
 
@@ -977,7 +977,7 @@ function buildMessage(boss) {
   // ── Ubicación ──
   if (boss.respawn) {
     text += `\n📍 *Ubicación:*\n`;
-    text += `${boss.respawn}\n`;
+    text += `${boss.respawn}\n`;⚔️ Ataques:
   }
 
   // ── Loot ──
