@@ -7,14 +7,25 @@ const API_URL = 'https://api.rubinottools.com/api/boosts';
    HELPERS
 ========================= */
 
-// Convierte un nombre a formato URL para Tibia Fandom.
-// Ej: "Tropical Desolator" -> "Tropical_Desolator"
-function toFandomSlug(name) {
+// Convierte un nombre a formato Título.
+// Ej: "lacewing moth" -> "Lacewing Moth"
+//     "the lord of the lice" -> "The Lord Of The Lice"
+function toTitleCase(name) {
     if (!name) return '';
     return name
         .split(' ')
         .filter(Boolean)
         .map(word => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
+        .join(' ');
+}
+
+// Convierte un nombre a formato URL para Tibia Fandom.
+// Ej: "Tropical Desolator" -> "Tropical_Desolator"
+function toFandomSlug(name) {
+    if (!name) return '';
+    return toTitleCase(name)
+        .split(' ')
+        .filter(Boolean)
         .join('_');
 }
 
@@ -48,13 +59,13 @@ async function fetchBoosts() {
 ========================= */
 
 function formatBoostMessage(data) {
-    const bossName = data.boss?.name || 'Desconocido';
-    const creatureName = data.creature?.name || 'Desconocida';
+    const bossName     = toTitleCase(data.boss?.name)     || 'Desconocido';
+    const creatureName = toTitleCase(data.creature?.name) || 'Desconocida';
 
-    const bossSlug = toFandomSlug(bossName);
-    const creatureSlug = toFandomSlug(creatureName);
+    const bossSlug     = toFandomSlug(data.boss?.name);
+    const creatureSlug = toFandomSlug(data.creature?.name);
 
-    const bossUrl = `https://tibia.fandom.com/wiki/${bossSlug}`;
+    const bossUrl     = `https://tibia.fandom.com/wiki/${bossSlug}`;
     const creatureUrl = `https://tibia.fandom.com/wiki/${creatureSlug}`;
 
     let text = `🚀 *Boosted del día*\n\n`;
