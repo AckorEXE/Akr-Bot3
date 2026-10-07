@@ -19,9 +19,7 @@ const VOCATIONS = {
 
 function getVocation(name) {
     if (!name) return { name: 'Unknown', emoji: '❔' };
-    // Coincidencia exacta
     if (VOCATIONS[name]) return VOCATIONS[name];
-    // Fallback por palabra clave (por si Ultron añade variantes)
     const v = name.toLowerCase();
     if (/druid/.test(v)) return { name, emoji: '❄️' };
     if (/sorcerer/.test(v)) return { name, emoji: '🔥' };
@@ -112,7 +110,6 @@ module.exports = async (msg) => {
         });
 
         let text = `🔰 *Guild:* ${guildName}\n`;
-        text += `🌍 *Mundo:* UltronOT\n`;
         text += `👥 *Miembros:* ${members.length}\n`;
 
         let currentRank = null;
