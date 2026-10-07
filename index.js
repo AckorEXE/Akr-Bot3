@@ -42,6 +42,9 @@ const commandEmojis = {
     rwar: '🔰',
     rwarchar: '🔰',
     rboosted: '🔰',
+
+   // ultronot
+    uguild: '🔰',
 };
 
 
@@ -66,6 +69,7 @@ const cooldownCommands = {
     rwar: 3,
     rwarchar: 3,
     rboosted: 3,
+    uguild: 3,
 };
 
 // cooldowns[userId][command] = { last, warned }
@@ -207,6 +211,7 @@ const rstats = require('./commands/rstats');
 const rwar = require('./commands/rwar');
 const rwarchar = require('./commands/rwarchar');
 const rboosted = require('./commands/rboosted');
+const uguild = require('./commands/uguild');
 
 const commands = {
     // 💛 Menú / ayuda
@@ -241,6 +246,9 @@ const commands = {
    rwarchar,
    rboosted,
 
+   // Ultronot
+   uguild,
+   
     // 📥 Descargas
     elfbot,
     client860,
@@ -324,7 +332,7 @@ client.on('message', async (msg) => {
                     userId,
                     group: chat.name
                 });
-                return; // ❌ NO reacción, ❌ NO mensaje
+                return; //
             }
 
             logCommand('COOLDOWN', {
