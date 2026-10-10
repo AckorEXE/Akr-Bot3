@@ -1,4 +1,4 @@
-const axios = require('axios');
+const { fetchGuildHtml } = require('../utils/ultronotApi');
 
 function vocationEmoji(voc) {
     const v = voc.toLowerCase();
@@ -58,35 +58,33 @@ async function asyncReact(target, emoji) {
 }
 
 module.exports = async (msg) => {
-    try {
-        const args = msg.body.split(' ').slice(1);
+    // whatsapp-web.js expone el client en cada mensaje
+    // (si tu handler lo pasa como segundo parámetro, cámbialo a: async (msg, client) => {...)
+    const client = msg.client;
 
-        if (!args.length) {
-            const errorMsg = await asyncReply(msg, 'Uso correcto: *!guild <nombre>*');
+    const args = msg.body.split(' ').slice(1);
+    const guildName = args.join(' ').trim();
+
+    try {
+        if (!guildName) {
+            const errorMsg = await asyncReply(msg, '*Uso correcto:* `!uguild <guild>`\nEjemplo: `!uguild Levanton`');
             await asyncReact(errorMsg, '❎');
             await asyncReact(msg, '❎');
             return null;
         }
 
-        const guildName = args.join(' ').trim();
-        const encodedName = encodeURIComponent(guildName);
-
-        const res = await axios.get(
-            `https://www.ultronot.com/?subtopic=guilds&action=view&GuildName=${encodedName}`,
-            { timeout: 15000 }
-        );
-
-        const members = parseGuildMembers(res.data);
+        const html = await fetchGuildHtml(client, guildName);
+        const members = parseGuildMembers(html);
 
         if (!members.length) {
-            const errorMsg = await asyncReply(msg, `❌ No se encontró la guild *${guildName}*. Revisa el nombre.`);
+            const errorMsg = await asyncReply(msg, `No se encontró la guild *${guildName}* en UltronOT.`);
             await asyncReact(errorMsg, '❎');
             await asyncReact(msg, '❎');
             return null;
         }
 
+        const rankOrder = { Leader: 0, ViceLeader: 1, Member: 2 };
         const ordered = members.sort((a, b) => {
-            const rankOrder = { Leader: 0, ViceLeader: 1, Member: 2 };
             const ra = rankOrder[a.rank] !== undefined ? rankOrder[a.rank] : 3;
             const rb = rankOrder[b.rank] !== undefined ? rankOrder[b.rank] : 3;
             if (ra !== rb) return ra - rb;
@@ -110,14 +108,10 @@ module.exports = async (msg) => {
         return asyncReply(msg, text.trim());
 
     } catch (err) {
-        console.log('❌ ERROR guild:', err.message);
-        try {
-            const args = msg.body.split(' ').slice(1);
-            const guildName = args.join(' ').trim();
-            const errorMsg = await asyncReply(msg, `❌ No se encontró la guild *${guildName}*.`);
-            await asyncReact(errorMsg, '❎');
-            await asyncReact(msg, '❎');
-        } catch {}
+        console.log('❌ ERROR uguild:', err.message);
+        const errorMsg = await asyncReply(msg, `No se pudo consultar la guild *${guildName}* en UltronOT.`);
+        await asyncReact(errorMsg, '❎');
+        await asyncReact(msg, '❎');
         return null;
     }
 };
