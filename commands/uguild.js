@@ -1,34 +1,14 @@
-// commands/uguild.js
-// Comando !uguild <nombre> para UltronOT.
-// Usa el navegador del bot (via ultronApi) para pasar Cloudflare,
-// y parsea el HTML igual que el antiguo guild.js.
+const axios = require('axios');
 
-const { fetchGuildHtml } = require('../utils/ultronApi');
-
-const VOCATIONS = {
-    'None':            { name: 'None',            emoji: '❔' },
-    'Sorcerer':        { name: 'Sorcerer',        emoji: '🔥' },
-    'Master Sorcerer': { name: 'Master Sorcerer', emoji: '🔥' },
-    'Druid':           { name: 'Druid',           emoji: '❄️' },
-    'Elder Druid':     { name: 'Elder Druid',     emoji: '❄️' },
-    'Paladin':         { name: 'Paladin',         emoji: '🏹' },
-    'Royal Paladin':   { name: 'Royal Paladin',   emoji: '🏹' },
-    'Knight':          { name: 'Knight',          emoji: '🛡️' },
-    'Elite Knight':    { name: 'Elite Knight',    emoji: '🛡️' },
-};
-
-function getVocation(name) {
-    if (!name) return { name: 'Unknown', emoji: '❔' };
-    if (VOCATIONS[name]) return VOCATIONS[name];
-    const v = name.toLowerCase();
-    if (/druid/.test(v)) return { name, emoji: '❄️' };
-    if (/sorcerer/.test(v)) return { name, emoji: '🔥' };
-    if (/knight/.test(v)) return { name, emoji: '🛡️' };
-    if (/paladin/.test(v)) return { name, emoji: '🏹' };
-    return { name, emoji: '❔' };
+function vocationEmoji(voc) {
+    const v = voc.toLowerCase();
+    if (/druid/.test(v)) return '❄️';
+    if (/sorcerer/.test(v)) return '🔥';
+    if (/knight/.test(v)) return '⚔️';
+    if (/paladin/.test(v)) return '🏹';
+    return '❔';
 }
 
-// Parser del HTML de la guild de Ultron (del antiguo guild.js)
 function parseGuildMembers(html) {
     const members = [];
 
@@ -49,9 +29,7 @@ function parseGuildMembers(html) {
 
         const rank = tds[0].replace(/<[^>]+>/g, '').trim();
         const nameMatch = tds[1].match(/<A[^>]*>([\s\S]*?)<\/A>/i);
-        const name = nameMatch
-            ? nameMatch[1].replace(/<[^>]+>/g, '').trim()
-            : tds[1].replace(/<[^>]+>/g, '').trim();
+        const name = nameMatch ? nameMatch[1].replace(/<[^>]+>/g, '').trim() : tds[1].replace(/<[^>]+>/g, '').trim();
         const vocation = tds[2].replace(/<[^>]+>/g, '').trim();
         const level = tds[3].replace(/<[^>]+>/g, '').trim();
         const statusRaw = tds[4] || '';
@@ -80,28 +58,34 @@ async function asyncReact(target, emoji) {
 }
 
 module.exports = async (msg) => {
-    const args = msg.body.split(' ').slice(1);
-    const guildName = args.join(' ').trim();
-
-    if (!guildName) {
-        const errorMsg = await asyncReply(msg, '*Uso correcto:* `!uguild <guild>`\nEjemplo: `!uguild Levanton`');
-        await asyncReact(errorMsg, '❎');
-        await asyncReact(msg, '❎');
-        return null;
-    }
-
     try {
-        const html = await fetchGuildHtml(msg.client, guildName);
-        const members = parseGuildMembers(html);
+        const args = msg.body.split(' ').slice(1);
 
-        if (!members.length) {
-            const errorMsg = await asyncReply(msg, `No se encontró la guild *${guildName}* en UltronOT.`);
+        if (!args.length) {
+            const errorMsg = await asyncReply(msg, 'Uso correcto: *!guild <nombre>*');
             await asyncReact(errorMsg, '❎');
             await asyncReact(msg, '❎');
             return null;
         }
 
-        const ordered = [...members].sort((a, b) => {
+        const guildName = args.join(' ').trim();
+        const encodedName = encodeURIComponent(guildName);
+
+        const res = await axios.get(
+            `https://www.ultronot.com/?subtopic=guilds&action=view&GuildName=${encodedName}`,
+            { timeout: 15000 }
+        );
+
+        const members = parseGuildMembers(res.data);
+
+        if (!members.length) {
+            const errorMsg = await asyncReply(msg, `❌ No se encontró la guild *${guildName}*. Revisa el nombre.`);
+            await asyncReact(errorMsg, '❎');
+            await asyncReact(msg, '❎');
+            return null;
+        }
+
+        const ordered = members.sort((a, b) => {
             const rankOrder = { Leader: 0, ViceLeader: 1, Member: 2 };
             const ra = rankOrder[a.rank] !== undefined ? rankOrder[a.rank] : 3;
             const rb = rankOrder[b.rank] !== undefined ? rankOrder[b.rank] : 3;
@@ -109,8 +93,7 @@ module.exports = async (msg) => {
             return b.level - a.level;
         });
 
-        let text = `🔰 *Guild:* ${guildName}\n`;
-        text += `👥 *Miembros:* ${members.length}\n`;
+        let text = `🛡️ *Guild:* ${guildName}\n👥 *Miembros:* ${members.length}\n`;
 
         let currentRank = null;
         for (const m of ordered) {
@@ -119,19 +102,22 @@ module.exports = async (msg) => {
                 const rankEmoji = currentRank === 'Leader' ? '🧙' : currentRank === 'ViceLeader' ? '👑' : '🛡';
                 text += `\n${rankEmoji} *${currentRank}*\n`;
             }
-            const voc = getVocation(m.vocation);
             const status = m.online ? '🟢' : '🔴';
-            const prefix = m.rank === 'Leader' ? '' : '• ';
-            text += `${prefix}${m.name} · ${m.level} · ${voc.emoji}${status}\n`;
+            const prefix = m.rank === 'Leader' ? '' : '* ';
+            text += `${prefix}${m.name} · ${m.level} · ${vocationEmoji(m.vocation)}${status}\n`;
         }
 
         return asyncReply(msg, text.trim());
 
     } catch (err) {
-        console.log('ERROR uguild:', err.message);
-        const errorMsg = await asyncReply(msg, `No se encontró la guild *${guildName}* en UltronOT.`);
-        await asyncReact(errorMsg, '❎');
-        await asyncReact(msg, '❎');
+        console.log('❌ ERROR guild:', err.message);
+        try {
+            const args = msg.body.split(' ').slice(1);
+            const guildName = args.join(' ').trim();
+            const errorMsg = await asyncReply(msg, `❌ No se encontró la guild *${guildName}*.`);
+            await asyncReact(errorMsg, '❎');
+            await asyncReact(msg, '❎');
+        } catch {}
         return null;
     }
 };
